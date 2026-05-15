@@ -19,9 +19,12 @@ body {
 /* ==========================================
    HEADER — barra de navegação fixa
    ========================================== */
-#cabecalho {
-    display: flex;
-    justify-content: space-between;
+/* ==========================================
+   HEADER — barra de navegação fixa
+   ========================================== */
+   #cabecalho {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     padding: 20px 40px;
     position: fixed;
@@ -29,7 +32,8 @@ body {
     left: 0;
     width: 100%;
     background: rgba(26, 26, 26, 0.6);
-    backdrop-filter: blur(10px); /* efeito vidro */
+    backdrop-filter: blur(10px);
+    z-index: 200;      
 }
 
 #cabecalho a {
@@ -49,6 +53,9 @@ body {
     color: #c8c0b0;
     font-size: 24px;
     cursor: pointer;
+    justify-self: end;
+    position: relative;    /* ← adiciona */
+    z-index: 200;          /* ← adiciona */
 }
 
 /* menu que aparece ao clicar no ≡ */
@@ -65,9 +72,9 @@ body {
     justify-content: center;
     gap: 40px;
     padding: 40px;
-    transform: translateX(100%); /* escondido à direita */
+    transform: translateX(100%);
     transition: transform 0.4s ease;
-    z-index: 100;
+    z-index: 150; /* ← muda para 150 */
 }
 
 /* quando o menu tem a classe "aberto" */
@@ -92,17 +99,19 @@ main {
 /* ==========================================
    INTRO — tela de abertura com animação
    ========================================== */
-#intro {
-    height: 100vh;
+#intro {    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 0;
+    transform-origin: top center;
 }
 
 #intro img {
     height: 150px;
 }
-
 /* bola que cai na animação */
 #bola {
     width: 80px;
@@ -110,37 +119,45 @@ main {
     background-color: #c8c0b0;
     border-radius: 50%;
     position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
-/* logo que aparece após a animação */
 #logo-intro {
     height: 150px;
-    opacity: 0; /* invisível no início */
+    opacity: 0;
+    #logo-intro {
+        height: 150px;
+        opacity: 0;
+        z-index: 0; /* ← fica atrás de tudo */
+    }
 }
 
-/* animação de rotação 360° */
 @keyframes girar {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
 .girando {
-    animation: girar 1s ease-in-out;
+    animation: girar 1s ease-in-out forwards;
 }
 
 /* ==========================================
    BANNER — frase principal
    ========================================== */
-#banner {
+   #banner {
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 0 40px;
+    position: relative;
+    z-index: 2;
 }
 
 #banner h1 {
-    font-size: clamp(2rem, 5vw, 5rem); /* tamanho responsivo */
+    font-size: clamp(2rem, 5vw, 5rem);
     font-weight: 300;
     text-align: center;
     letter-spacing: 0.02em;
@@ -166,31 +183,35 @@ main {
     white-space: nowrap;
 }
 
+/* ==========================================
+   PORTFOLIO — carrossel de projetos
+   ========================================== */
    #portfolio {
     padding: 80px 40px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
     gap: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+#portfolio::-webkit-scrollbar {
+    display: none;
 }
 
 #portfolio article {
-    aspect-ratio: 4/3;
+    min-width: 350px;
+    height: 450px;
     background: #2a2a2a;
     overflow: hidden;
     cursor: pointer;
     position: relative;
-    transition: all 0.6s ease; /* transição suave */
+    flex-shrink: 0;
+    border-radius: 8px;
+    transition: transform 0.4s ease;
 }
 
-/* expande ao passar o mouse */
 #portfolio article:hover {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 50;
-    aspect-ratio: unset;
+    transform: scale(1.03);
 }
 
 #portfolio article img {
@@ -220,18 +241,25 @@ main {
 /* ==========================================
    SOBRE NÓS — texto e carrossel
    ========================================== */
-#sobre {
+   #sobre {
     padding: 80px 40px;
     display: grid;
-    grid-template-columns: 1fr 1fr; /* duas colunas */
+    grid-template-columns: 1fr 1fr;
     gap: 60px;
     align-items: center;
+    min-height: 100vh;
 }
 
 #sobre h2 {
     font-size: 2rem;
     font-weight: 300;
     margin-bottom: 20px;
+}
+
+#sobre-imagem img {
+    width: 100%;
+    border-radius: 8px;
+    object-fit: cover;
 }
 
 /* carrossel com scroll horizontal */
