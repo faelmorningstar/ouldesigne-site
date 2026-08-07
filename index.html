@@ -1,98 +1,366 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ouldesigne</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#080808">
+    <meta name="description" content="OulDesign — estratégia, identidade e experiências de marca com presença.">
+    <title>OulDesign — Design com presença</title>
+    <link rel="preload" href="assets/ouldesign-logo-3d.glb?v=20260807-modelo-confirmado" as="fetch" crossorigin>
+    <link rel="stylesheet" href="style.css?v=20260807-modelo-confirmado">
 </head>
-<body>
+<body class="is-loading">
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
 
-    <header id="cabecalho">
-        <a href="#portfolio">Projetos</a>
-        <img src="logo-02.png" alt="Ouldesigne">
-        <button id="menu-btn">≡</button>
+    <div class="cursor" aria-hidden="true">
+        <span class="cursor__dot"></span>
+        <span class="cursor__ring"></span>
+    </div>
+
+    <header class="site-header" id="site-header">
+        <a class="site-header__shortcut" href="#portfolio">Projetos</a>
+
+        <a class="site-header__brand" href="#intro" aria-label="OulDesign — voltar ao início">
+            <img src="assets/logo-flat.png" alt="">
+        </a>
+
+        <button class="menu-button" id="menu-button" type="button" aria-expanded="false" aria-controls="site-menu">
+            <span class="menu-button__label">Menu</span>
+            <span class="menu-button__icon" aria-hidden="true"><i></i><i></i></span>
+        </button>
     </header>
 
-    <nav id="menu">
-        <a href="#portfolio">Projetos</a>
-        <a href="#sobre">Sobre nós</a>
-        <a href="#faq">FAQ</a>
-        <a href="#contato">Contato</a>
+    <div class="menu-backdrop" data-menu-close aria-hidden="true"></div>
+    <nav class="site-menu" id="site-menu" aria-label="Navegação principal" aria-hidden="true" inert>
+        <div class="site-menu__top">
+            <span>Navegação</span>
+            <button type="button" data-menu-close aria-label="Fechar menu">Fechar</button>
+        </div>
+        <div class="site-menu__links">
+            <a href="#percepcao"><span>01</span>Percepção</a>
+            <a href="#linguagem"><span>02</span>Linguagem</a>
+            <a href="#portfolio"><span>03</span>Projetos</a>
+            <a href="#sobre"><span>04</span>Sobre nós</a>
+            <a href="#faq"><span>05</span>FAQ</a>
+            <a href="#contato"><span>06</span>Contato</a>
+        </div>
+        <p class="site-menu__note">Estratégia, identidade e presença.</p>
     </nav>
 
-    <main>
-        <section id="intro">
-            <div id="bola"></div>
-            <img src="logo-02.png" alt="Ouldesigne" id="logo-intro">
+    <main id="conteudo">
+        <section class="hero" id="intro" aria-label="Apresentação OulDesign">
+            <div class="hero__stage">
+                <div class="hero__ball" id="hero-ball" aria-hidden="true"></div>
+                <div class="hero__fallback" id="hero-fallback" aria-hidden="true">
+                    <span>OUL</span>
+                </div>
+                <img class="hero__flat-logo" id="hero-flat-logo" src="assets/logo-flat.png" alt="" hidden>
+                <div class="hero__model" id="logo-3d-container" role="img" aria-label="Símbolo tridimensional da OulDesign controlado pelo cursor"></div>
+                <div class="hero__loader" id="hero-loader" role="status" aria-live="polite">
+                    <span>Preparando forma</span>
+                    <i aria-hidden="true"></i>
+                </div>
+            </div>
+            <a class="hero__scroll" href="#percepcao" aria-label="Continuar para a próxima seção">
+                <span aria-hidden="true"></span>
+            </a>
         </section>
 
-        <section id="banner">
-            <h1>Juntos criamos o seu protagonismo</h1>
+        <section class="perception" id="percepcao" aria-labelledby="perception-title">
+            <div class="perception__grain" aria-hidden="true"></div>
+            <div class="perception__copy perception__copy--base">
+                <h1 id="perception-title">Como você<br>quer ser visto?</h1>
+            </div>
+            <div class="perception__copy perception__copy--light" aria-hidden="true">
+                <div class="perception__title-copy">Como você<br>quer ser visto?</div>
+            </div>
         </section>
 
-        <section id="palavra">
-            <span>Design</span>
+        <section class="language" id="linguagem" aria-labelledby="language-title">
+            <div class="language__stage">
+                <div class="type-stream" aria-hidden="true">
+                    <div class="type-stream__row" data-speed="0.72">
+                        <span>Design</span><i>✦</i><span>Estratégia</span><i>✦</i><span>Design</span>
+                    </div>
+                    <div class="type-stream__row type-stream__row--outline" data-speed="0.48">
+                        <span>Identidade</span><i>✦</i><span>Cultura</span><i>✦</i><span>Identidade</span>
+                    </div>
+                    <div class="type-stream__row" data-speed="0.9">
+                        <span>Presença</span><i>✦</i><span>Movimento</span><i>✦</i><span>Presença</span>
+                    </div>
+                </div>
+
+                <div class="language__identity-finale" aria-hidden="true">
+                    <img src="assets/logo-expanded.png" alt="">
+                    <span>Identidade</span>
+                </div>
+                <h2 class="sr-only" id="language-title">Identidade, estratégia e presença</h2>
+            </div>
         </section>
 
-        <section id="portfolio">
-            <article>
-                <img src="quadro_1.png" alt="Projeto 1">
-                <h2>Projeto 1</h2>
-            </article>
-            <article>
-                <img src="quadro_2.png" alt="Projeto 2">
-                <h2>Projeto 2</h2>
-            </article>
-            <article>
-                <img src="" alt="Projeto 3">
-                <h2>Projeto 3</h2>
-            </article>
+        <section class="portfolio stack-panel" id="portfolio" aria-labelledby="portfolio-title">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">Projetos selecionados</p>
+                    <h2 id="portfolio-title">Damos forma ao que<br>a sua marca quer dizer.</h2>
+                </div>
+            </div>
+
+            <div class="portfolio-list">
+                <article class="portfolio-case" id="projeto-chamelette">
+                    <a class="portfolio-case__media" href="#projeto-chamelette" aria-label="Ver prévia do projeto Chamelette">
+                        <video muted loop playsinline preload="metadata" poster="assets/portfolio/chamelette-poster.jpg">
+                            <source src="assets/portfolio/chamelette-preview.webm" type="video/webm">
+                            <source src="assets/portfolio/chamelette-preview.mp4" type="video/mp4">
+                        </video>
+                        <span class="portfolio-case__number">01</span>
+                    </a>
+                    <div class="portfolio-case__info">
+                        <div>
+                            <p class="portfolio-case__eyebrow">Projeto selecionado · 01</p>
+                            <h3>Chamelette</h3>
+                        </div>
+                        <p>Uma amostra da linguagem construída para a marca, reunindo ritmo, composição e presença visual.</p>
+                    </div>
+                    <figure class="portfolio-case__still">
+                        <img src="assets/portfolio/chamelette-poster.jpg" alt="Composição visual do projeto Chamelette" loading="lazy">
+                        <figcaption>Recorte do projeto</figcaption>
+                    </figure>
+                </article>
+
+                <article class="portfolio-case portfolio-case--reverse" id="projeto-nonno">
+                    <a class="portfolio-case__media" href="#projeto-nonno" aria-label="Ver prévia do projeto Nonno">
+                        <video muted loop playsinline preload="metadata" poster="assets/portfolio/nonno-poster.jpg">
+                            <source src="assets/portfolio/nonno-preview.webm" type="video/webm">
+                            <source src="assets/portfolio/nonno-preview.mp4" type="video/mp4">
+                        </video>
+                        <span class="portfolio-case__number">02</span>
+                    </a>
+                    <div class="portfolio-case__info">
+                        <div>
+                            <p class="portfolio-case__eyebrow">Projeto selecionado · 02</p>
+                            <h3>Nonno</h3>
+                        </div>
+                        <p>Identidade apresentada em escala editorial, com espaço para incorporar estratégia, aplicações e novos materiais do case.</p>
+                    </div>
+                    <figure class="portfolio-case__still">
+                        <img src="assets/portfolio/nonno-poster.jpg" alt="Composição visual do projeto Nonno" loading="lazy">
+                        <figcaption>Recorte do projeto</figcaption>
+                    </figure>
+                </article>
+
+                <article class="portfolio-case" id="projeto-samuka">
+                    <a class="portfolio-case__media" href="#projeto-samuka" aria-label="Ver prévia do projeto Samuka">
+                        <video muted loop playsinline preload="metadata" poster="assets/portfolio/samuka-poster.jpg">
+                            <source src="assets/portfolio/samuka-preview.webm" type="video/webm">
+                            <source src="assets/portfolio/samuka-preview.mp4" type="video/mp4">
+                        </video>
+                        <span class="portfolio-case__number">03</span>
+                    </a>
+                    <div class="portfolio-case__info">
+                        <div>
+                            <p class="portfolio-case__eyebrow">Projeto selecionado · 03</p>
+                            <h3>Samuka</h3>
+                        </div>
+                        <p>Um recorte dinâmico que transforma os elementos do projeto em uma experiência visual direta e memorável.</p>
+                    </div>
+                    <figure class="portfolio-case__still">
+                        <img src="assets/portfolio/samuka-poster.jpg" alt="Composição visual do projeto Samuka" loading="lazy">
+                        <figcaption>Recorte do projeto</figcaption>
+                    </figure>
+                </article>
+            </div>
+
         </section>
 
-        <section id="faq">
-            <h2>Perguntas frequentes</h2>
-            <article>
-                <h3>Pergunta 1</h3>
-                <p>Resposta 1</p>
-            </article>
-            <article>
-                <h3>Pergunta 2</h3>
-                <p>Resposta 2</p>
-            </article>
-            <article>
-                <h3>Pergunta 3</h3>
-                <p>Resposta 3</p>
-            </article>
+        <section class="about" id="sobre" aria-labelledby="about-title">
+            <div class="about__lead">
+                <p class="section-kicker">Sobre nós</p>
+                <h2 id="about-title">Design para marcas<br>que escolhem ter voz.</h2>
+            </div>
+
+            <div class="about__body">
+                <p class="about__statement">A OulDesign entende o mercado para traduzir, de forma criativa, a cultura de cada empresa.</p>
+                <div class="about__copy">
+                    <p>Estratégia e expressão caminham juntas: investigamos a essência, construímos uma linguagem própria e contamos histórias por meio do design.</p>
+                    <p>Com dez anos de experiência, cada projeto nasce do contexto e evita respostas genéricas.</p>
+                    <a class="text-link" href="#contato">Conheça nosso jeito de criar <span>↗</span></a>
+                </div>
+            </div>
+
+            <div class="about__signature" id="about-signature" aria-hidden="true">
+                <div class="about__signature-base">
+                    <img src="assets/logo-flat.png" alt="">
+                </div>
+                <div class="about__signature-color">
+                    <img src="assets/logo-flat.png" alt="">
+                </div>
+                <span>Estratégia · identidade · presença</span>
+            </div>
+
+            <section class="project-archive" aria-labelledby="archive-title">
+                <div class="project-archive__header">
+                    <div>
+                        <p class="section-kicker">Recortes do portfólio</p>
+                        <h3 id="archive-title">Três universos.<br>Uma direção autoral.</h3>
+                    </div>
+                    <p>Os materiais reais substituem as logos decorativas e aproximam a apresentação do trabalho entregue pelo studio.</p>
+                </div>
+
+                <div class="project-archive__grid">
+                    <a class="archive-card archive-card--wide" href="#projeto-chamelette">
+                        <img src="assets/portfolio/chamelette-poster.jpg" alt="Projeto Chamelette" loading="lazy">
+                        <span><b>01</b> Chamelette <i>↗</i></span>
+                    </a>
+                    <a class="archive-card" href="#projeto-nonno">
+                        <img src="assets/portfolio/nonno-poster.jpg" alt="Projeto Nonno" loading="lazy">
+                        <span><b>02</b> Nonno <i>↗</i></span>
+                    </a>
+                    <a class="archive-card" href="#projeto-samuka">
+                        <img src="assets/portfolio/samuka-poster.jpg" alt="Projeto Samuka" loading="lazy">
+                        <span><b>03</b> Samuka <i>↗</i></span>
+                    </a>
+                </div>
+            </section>
         </section>
 
-        <section id="contato">
-            <h2>Vamos conversar?</h2>
-            <form>
-                <input type="text" placeholder="Seu nome">
-                <input type="email" placeholder="Seu e-mail">
-                <textarea placeholder="Sua mensagem"></textarea>
-                <button type="submit">Enviar</button>
+        <section class="faq stack-panel" id="faq" aria-labelledby="faq-title">
+            <div class="section-heading section-heading--compact">
+                <div>
+                    <p class="section-kicker">Antes de começar</p>
+                    <h2 id="faq-title">Perguntas que<br>abrem caminhos.</h2>
+                </div>
+            </div>
+
+            <div class="faq__stage">
+                <div class="faq-grid">
+                    <details class="faq-card">
+                        <summary>
+                            <span class="faq-card__number">01</span>
+                            <span class="faq-card__media"><img src="assets/faq/branding.jpg" alt="" loading="lazy"></span>
+                            <span class="faq-card__question">
+                                <em>Essência</em>
+                                <strong>Minha empresa já tem uma logo. Ainda preciso de branding?</strong>
+                                <span class="faq-card__tags"><b>Branding</b><b>Estratégia</b><b>Cultura</b></span>
+                            </span>
+                            <i aria-hidden="true"></i>
+                        </summary>
+                        <div class="faq-card__answer"><p>A logo é uma parte da identidade. Branding organiza posicionamento, discurso, experiência e percepção para que todas as escolhas da marca caminhem na mesma direção.</p></div>
+                    </details>
+                    <details class="faq-card">
+                        <summary>
+                            <span class="faq-card__number">02</span>
+                            <span class="faq-card__media"><img src="assets/faq/identidade.jpg" alt="" loading="lazy"></span>
+                            <span class="faq-card__question">
+                                <em>Coerência</em>
+                                <strong>O que uma identidade visual realmente muda?</strong>
+                                <span class="faq-card__tags"><b>Identidade</b><b>Consistência</b><b>Reconhecimento</b></span>
+                            </span>
+                            <i aria-hidden="true"></i>
+                        </summary>
+                        <div class="faq-card__answer"><p>Ela transforma estratégia em sinais reconhecíveis. Cor, tipografia, forma e composição passam a comunicar quem a empresa é antes mesmo de uma explicação completa.</p></div>
+                    </details>
+                    <details class="faq-card">
+                        <summary>
+                            <span class="faq-card__number">03</span>
+                            <span class="faq-card__media"><img src="assets/faq/processo.jpg" alt="" loading="lazy"></span>
+                            <span class="faq-card__question">
+                                <em>Processo</em>
+                                <strong>Como funciona o processo da OulDesign?</strong>
+                                <span class="faq-card__tags"><b>Escuta</b><b>Direção</b><b>Sistema</b></span>
+                            </span>
+                            <i aria-hidden="true"></i>
+                        </summary>
+                        <div class="faq-card__answer"><p>Começamos pela escuta e pelo contexto. Depois definimos direção, exploramos linguagens e construímos um sistema visual coerente com a cultura e os objetivos do negócio.</p></div>
+                    </details>
+                    <details class="faq-card">
+                        <summary>
+                            <span class="faq-card__number">04</span>
+                            <span class="faq-card__media"><img src="assets/faq/tempo.jpeg" alt="" loading="lazy"></span>
+                            <span class="faq-card__question">
+                                <em>Ritmo</em>
+                                <strong>Quanto tempo leva um projeto?</strong>
+                                <span class="faq-card__tags"><b>Escopo</b><b>Cronograma</b><b>Validação</b></span>
+                            </span>
+                            <i aria-hidden="true"></i>
+                        </summary>
+                        <div class="faq-card__answer"><p>O prazo depende da profundidade e das entregas combinadas. Depois da conversa inicial, o projeto recebe um cronograma claro, com etapas de apresentação e validação.</p></div>
+                    </details>
+                    <details class="faq-card faq-card--accent">
+                        <summary>
+                            <span class="faq-card__number">05</span>
+                            <span class="faq-card__media"><img src="assets/faq/escolher-ouldesign.jpg" alt="" loading="lazy"></span>
+                            <span class="faq-card__question">
+                                <em>Presença</em>
+                                <strong>Por que escolher a OulDesign?</strong>
+                                <span class="faq-card__tags"><b>Autoria</b><b>Experiência</b><b>Presença</b></span>
+                            </span>
+                            <i aria-hidden="true"></i>
+                        </summary>
+                        <div class="faq-card__answer"><p>Porque não buscamos uma resposta genérica. Com dez anos de experiência, mergulhamos na cultura de cada marca para criar uma identidade autoral, estratégica e presente.</p></div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section class="contact" id="contato" aria-labelledby="contact-title">
+            <div class="contact__intro">
+                <p class="section-kicker">Vamos conversar</p>
+                <h2 id="contact-title">Bora criar algo<br>que não passe<br>despercebido?</h2>
+            </div>
+
+            <form class="contact-form" id="contact-form" action="https://formspree.io/f/SEU_CODIGO" method="POST">
+                <label>
+                    <span>Seu nome</span>
+                    <input type="text" name="nome" autocomplete="name" required>
+                </label>
+                <label>
+                    <span>Seu melhor e-mail</span>
+                    <input type="email" name="email" autocomplete="email" required>
+                </label>
+                <label>
+                    <span>Conte um pouco sobre o projeto</span>
+                    <textarea name="mensagem" rows="4" required></textarea>
+                </label>
+                <button class="contact-form__submit" type="submit">
+                    <span>Enviar mensagem</span><i aria-hidden="true">↗</i>
+                </button>
+                <p class="contact-form__feedback" id="form-feedback" role="status" aria-live="polite"></p>
             </form>
         </section>
-
-        <section id="sobre">
-            <div id="sobre-texto">
-                <h2>Sobre nós</h2>
-                <p>Texto sobre a Ouldesigne.</p>
-            </div>
-            <div id="sobre-imagem">
-                <img src="3DGlass.png" alt="Ouldesigne 3D">
-            </div>
-        </section>
-
     </main>
 
-    <footer id="rodape">
-        <img src="logo-02.png" alt="Ouldesigne">
-        <p>© 2025 Ouldesigne. Todos os direitos reservados.</p>
+    <footer class="site-footer">
+        <div class="site-footer__intro">
+            <p>Estratégia, identidade<br>e presença.</p>
+        </div>
+        <nav class="site-footer__nav" aria-label="Navegação do rodapé">
+            <a href="#portfolio">Projetos</a>
+            <a href="#sobre">Sobre nós</a>
+            <a href="#faq">FAQ</a>
+            <a href="#contato">Contato</a>
+        </nav>
+        <div class="site-footer__meta">
+            <p>Brasil</p>
+            <p>Instagram · Behance</p>
+            <p>© <span id="current-year">2026</span> OulDesign</p>
+        </div>
+        <div class="site-footer__word" aria-hidden="true">OULDESIGN</div>
     </footer>
 
-    <script src="script.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./vendor/three.module.min.js?v=0.172.0",
+            "three/addons/": "./vendor/"
+        }
+    }
+    </script>
+    <script src="script.js?v=20260807-modelo-confirmado"></script>
+    <script
+        type="module"
+        src="logo-3d.js?v=20260807-modelo-confirmado"
+        onerror="window.dispatchEvent(new CustomEvent('ouldesign:model-error'))"
+    ></script>
 </body>
 </html>
