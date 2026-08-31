@@ -287,8 +287,8 @@ perception?.addEventListener('pointermove', (event) => {
 // Efeitos guiados pelo scroll
 const languageSection = $('#linguagem');
 const typeRows = $$('.type-stream__row');
-const finalIdentity = $('.type-stream__final-identity');
 const siteHeader = $('#site-header');
+const aboutSignature = $('#about-signature');
 const faqSection = $('#faq');
 const faqItems = $$('.faq-card');
 
@@ -304,8 +304,9 @@ function updateLanguageEffect() {
 
     if (prefersReducedMotion) {
         languageSection.style.backgroundColor = 'rgb(241, 216, 49)';
-        languageSection.style.setProperty('--stream-opacity', '1');
-        finalIdentity?.style.removeProperty('transform');
+        languageSection.style.setProperty('--stream-opacity', '0');
+        languageSection.style.setProperty('--finale-opacity', '1');
+        languageSection.style.setProperty('--finale-y', '0px');
         return;
     }
 
@@ -341,50 +342,6 @@ function updateLanguageEffect() {
     languageSection.style.backgroundColor = `rgb(${mixedColor.join(', ')})`;
 
     const startingOffsets = [-0.42, -0.67, -0.52];
-    const identityRow = finalIdentity?.parentElement;
-    const identityRowIndex = identityRow
-        ? typeRows.indexOf(identityRow)
-        : -1;
-    const identitySpeed = identityRow
-        ? Number(identityRow.dataset.speed || 0.6)
-        : 0;
-    const identityStartingOffset =
-        startingOffsets[identityRowIndex] ?? 0;
-    const identityLocalCenter = finalIdentity
-        ? finalIdentity.offsetLeft + finalIdentity.offsetWidth / 2
-        : 0;
-    const naturalCenterProgress = finalIdentity
-        ? clamp(
-            (
-                viewportWidth / 2 -
-                identityLocalCenter -
-                identityStartingOffset * viewportWidth
-            ) /
-            (identitySpeed * viewportWidth * 1.7),
-            0.36,
-            0.82
-        )
-        : 1;
-    const identityPinDuration = 0.18;
-    const identityPinStart = Math.max(
-        naturalCenterProgress - identityPinDuration,
-        0
-    );
-    const identityPinProgress = clamp(
-        (progress - identityPinStart) / identityPinDuration,
-        0,
-        1
-    );
-    const exitProgress = clamp(
-        (progress - naturalCenterProgress) /
-        Math.max(1 - naturalCenterProgress, 0.01),
-        0,
-        1
-    );
-    const exitEase =
-        exitProgress * exitProgress * (3 - 2 * exitProgress);
-
-    let identityRowX = 0;
 
     typeRows.forEach((row, index) => {
         const speed = Number(row.dataset.speed || 0.6);
@@ -392,56 +349,51 @@ function updateLanguageEffect() {
             startingOffsets[index] ??
             startingOffsets[startingOffsets.length - 1];
 
-        const normalX =
+        const x =
             (startingOffset * viewportWidth) +
             (progress * speed * viewportWidth * 1.7);
-        const x =
-            normalX +
-            exitEase * viewportWidth * 1.65;
 
         row.style.transform = `translate3d(${x}px, 0, 0)`;
-
-        if (row === identityRow) {
-            identityRowX = x;
-        }
     });
 
-    if (finalIdentity && identityRow) {
-        const startRowX =
-            (identityStartingOffset * viewportWidth) +
-            (
-                identityPinStart *
-                identitySpeed *
-                viewportWidth *
-                1.7
-            );
-        const startCenter = startRowX + identityLocalCenter;
-        const targetCenter = viewportWidth / 2;
-        const t = identityPinProgress;
-        const t2 = t * t;
-        const t3 = t2 * t;
-        const h00 = 2 * t3 - 3 * t2 + 1;
-        const h10 = t3 - 2 * t2 + t;
-        const h01 = -2 * t3 + 3 * t2;
-        const startingVelocity =
-            identitySpeed *
-            viewportWidth *
-            1.7 *
-            identityPinDuration;
-        const currentCenter = identityRowX + identityLocalCenter;
-        const desiredCenter = progress <= identityPinStart
-            ? currentCenter
-            : (
-                h00 * startCenter +
-                h10 * startingVelocity +
-                h01 * targetCenter
-            );
+    const streamFade = clamp((progress - 0.56) / 0.22, 0, 1);
+    const finaleProgress = clamp((progress - 0.67) / 0.2, 0, 1);
 
-        finalIdentity.style.transform =
-            `translate3d(${desiredCenter - currentCenter}px, 0, 0)`;
+    languageSection.style.setProperty(
+        '--stream-opacity',
+        String(1 - streamFade)
+    );
+    languageSection.style.setProperty(
+        '--finale-opacity',
+        String(finaleProgress)
+    );
+    languageSection.style.setProperty(
+        '--finale-y',
+        `${(1 - finaleProgress) * 44}px`
+    );
+}
+
+function updateAboutSignature() {
+    if (!aboutSignature) return;
+
+    if (prefersReducedMotion) {
+        aboutSignature.style.setProperty('--signature-reveal', '0%');
+        return;
     }
 
-    languageSection.style.setProperty('--stream-opacity', '1');
+    const rect = aboutSignature.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const progress = clamp(
+        (viewportHeight * 0.9 - rect.top) /
+        (viewportHeight * 0.72 + rect.height * 0.34),
+        0,
+        1
+    );
+
+    aboutSignature.style.setProperty(
+        '--signature-reveal',
+        `${(1 - progress) * 100}%`
+    );
 }
 
 function updateFaqCards() {
@@ -497,6 +449,7 @@ function updateScrollEffects() {
     );
 
     updateLanguageEffect();
+    updateAboutSignature();
     updateFaqCards();
 }
 
@@ -579,8 +532,10 @@ contactForm?.addEventListener('submit', (event) => {
 const revealTargets = [
     ...$$('.section-heading'),
     ...$$('.portfolio-case'),
-    $('.about__title'),
+    $('.about__lead'),
     $('.about__body'),
+    $('.project-archive__header'),
+    ...$$('.archive-card'),
     $('.contact__intro'),
     $('.contact-form')
 ].filter(Boolean);
