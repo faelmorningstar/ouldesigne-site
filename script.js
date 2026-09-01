@@ -302,13 +302,11 @@ function updateLanguageEffect() {
         return;
     }
 
-    if (prefersReducedMotion) {
-        languageSection.style.backgroundColor = 'rgb(241, 216, 49)';
-        languageSection.style.setProperty('--stream-opacity', '0');
-        languageSection.style.setProperty('--finale-opacity', '1');
-        languageSection.style.setProperty('--finale-y', '0px');
-        return;
-    }
+if (prefersReducedMotion) {
+    languageSection.style.backgroundColor = 'rgb(241, 216, 49)';
+    languageSection.style.setProperty('--stream-opacity', '1');
+    return;
+}
 
     const rect = languageSection.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
@@ -356,21 +354,10 @@ function updateLanguageEffect() {
         row.style.transform = `translate3d(${x}px, 0, 0)`;
     });
 
-    const streamFade = clamp((progress - 0.56) / 0.22, 0, 1);
-    const finaleProgress = clamp((progress - 0.67) / 0.2, 0, 1);
-
     languageSection.style.setProperty(
-        '--stream-opacity',
-        String(1 - streamFade)
-    );
-    languageSection.style.setProperty(
-        '--finale-opacity',
-        String(finaleProgress)
-    );
-    languageSection.style.setProperty(
-        '--finale-y',
-        `${(1 - finaleProgress) * 44}px`
-    );
+    '--stream-opacity',
+    '1'
+);
 }
 
 function updateAboutSignature() {

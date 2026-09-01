@@ -540,7 +540,7 @@ ul {
     min-height: 112vh;
     overflow: hidden;
     background: #070707;
-    color: #171717;
+    color: #0c0c0c;
 }
 
 .perception__grain {
@@ -578,8 +578,6 @@ ul {
 /* Linguagem */
 .language {
     --stream-opacity: 1;
-    --finale-opacity: 0;
-    --finale-y: 44px;
     position: relative;
     z-index: 5;
     min-height: 260vh;
@@ -635,32 +633,6 @@ ul {
 .type-stream__row--outline span {
     color: transparent;
     -webkit-text-stroke: 1.8px var(--ink);
-}
-
-.language__identity-finale {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    opacity: var(--finale-opacity);
-    transform: translateY(var(--finale-y));
-    transition: opacity 0.12s linear, transform 0.12s linear;
-}
-
-.language__identity-finale img {
-    position: absolute;
-    width: min(48vw, 640px);
-    opacity: 0.16;
-    filter: contrast(1.15);
-}
-
-.language__identity-finale span {
-    position: relative;
-    z-index: 1;
-    font-size: clamp(5rem, 15vw, 16rem);
-    font-weight: 650;
-    letter-spacing: -0.08em;
-    line-height: 0.8;
 }
 
 /* Títulos de seção */
@@ -1555,14 +1527,6 @@ ul {
 
     .type-stream__row--outline span {
         -webkit-text-stroke-width: 1.2px;
-    }
-
-    .language__identity-finale img {
-        width: min(76vw, 480px);
-    }
-
-    .language__identity-finale span {
-        font-size: clamp(4.2rem, 20vw, 8rem);
     }
 
     .section-heading {
