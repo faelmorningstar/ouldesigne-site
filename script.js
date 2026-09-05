@@ -25,37 +25,26 @@ if (cursor && hasFinePointer) {
                 cursor.style.transform =
                     `translate3d(${cursorX}px, ${cursorY}px, 0)`;
 
-                cursor.classList.add('is-visible');
 
                 const target = document.elementFromPoint(
                     cursorX,
                     cursorY
                 );
 
-                const isLight = target?.closest(
-                    '.language, .portfolio, .about, .faq'
+                const isPerception = target?.closest('.perception');
+
+                ursor.classList.toggle(
+                    'is-visible',
+                    Boolean(isPerception)
                 );
 
-                cursor.classList.toggle(
-                    'is-over-light',
-                    Boolean(isLight)
-                );
+cursor.classList.remove('is-over-light');
 
                 cursorFrame = 0;
             });
         }
     });
 
-    document.addEventListener('pointerover', (event) => {
-        const interactive = event.target.closest(
-            'a, button, summary, input, textarea, .portfolio-case__media'
-        );
-
-        cursor.classList.toggle(
-            'is-hovering',
-            Boolean(interactive)
-        );
-    });
 
     document.documentElement.addEventListener('mouseleave', () => {
         cursor.classList.remove('is-visible');
@@ -193,7 +182,7 @@ function showStaticMark() {
             } else {
                 waitingForModel = true;
             }
-        }, prefersReducedMotion ? 50 : 820);
+        }, prefersReducedMotion ? 50 : 1250);
     }, prefersReducedMotion ? 0 : 260);
 }
 
@@ -341,18 +330,18 @@ if (prefersReducedMotion) {
 
     const startingOffsets = [-0.42, -0.67, -0.52];
 
-    typeRows.forEach((row, index) => {
-        const speed = Number(row.dataset.speed || 0.6);
-        const startingOffset =
-            startingOffsets[index] ??
-            startingOffsets[startingOffsets.length - 1];
+typeRows.forEach((row, index) => {
+    const speed = Number(row.dataset.speed || 0.6);
+    const startingOffset =
+        startingOffsets[index] ??
+        startingOffsets[startingOffsets.length - 1];
 
-        const x =
-            (startingOffset * viewportWidth) +
-            (progress * speed * viewportWidth * 1.7);
+    const x =
+        (startingOffset * viewportWidth) +
+        (progress * speed * viewportWidth * 1.7);
 
-        row.style.transform = `translate3d(${x}px, 0, 0)`;
-    });
+    row.style.transform = `translate3d(${x}px, 0, 0)`;
+});
 
     languageSection.style.setProperty(
     '--stream-opacity',
