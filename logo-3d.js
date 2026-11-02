@@ -17,6 +17,44 @@ if (!container || !hero) {
 }
 
 function startLogoExperience() {
+    const glassStyle = {
+        material: {
+            color: 0x9fbfc5,
+            metalness: 0.08,
+            roughness: 0.12,
+            transmission: 0.62,
+            thickness: 0.45,
+            ior: 1.45,
+            clearcoat: 1,
+            clearcoatRoughness: 0.05,
+            envMapIntensity: 1.5,
+            attenuationColor: 0xd8f0f3,
+            attenuationDistance: 2.2,
+            side: THREE.DoubleSide
+        },
+        exposure: 0.9,
+        lighting: {
+            ambientColor: 0xd4e2ec,
+            groundColor: 0x080b10,
+            ambientIntensity: 0.35,
+            keyIntensity: 2.2,
+            fillColor: 0x8acbd8,
+            fillIntensity: 0.9,
+            rimColor: 0xc0e7ef,
+            rimIntensity: 1.4
+        },
+        studio: {
+            background: 0x080d12,
+            blur: 0.04,
+            readyDelay: 1500,
+            panels: [
+                { color: 0xffffff, intensity: 3.5, size: [1.7, 7], position: [-4, 1, 2] },
+                { color: 0x83cadd, intensity: 2, size: [1.25, 6], position: [4, 0.5, -1] },
+                { color: 0xdce8ed, intensity: 0.8, size: [5, 2.5], position: [0, 5, 1] }
+            ]
+        }
+    };
+    const glassMaterials = new Set();
     let renderer;
 
     try {
@@ -41,33 +79,87 @@ function startLogoExperience() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = glassStyle.exposure;
     container.replaceChildren(renderer.domElement);
 
-    const environmentCanvas = document.createElement('canvas');
-    environmentCanvas.width = 512;
-    environmentCanvas.height = 256;
-    const context = environmentCanvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, 512, 256);
+    // Cena usada somente para reflexos; os painéis não entram na cena da logo.
+    let environmentTarget = null;
+    let environmentStarted = false;
+    let environmentTimer = 0;
+    let introObserver = null;
 
-    gradient.addColorStop(0, '#111111');
-    gradient.addColorStop(0.22, '#d7d0c2');
-    gradient.addColorStop(0.42, '#243344');
-    gradient.addColorStop(0.58, '#7a2530');
-    gradient.addColorStop(0.74, '#e5dfd4');
-    gradient.addColorStop(1, '#0a0a0a');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 512, 256);
+    function createStudioEnvironment() {
+        let pmrem = null;
+        const studio = new THREE.Scene();
+        const panelGeometry = new THREE.PlaneGeometry(1, 1);
+        const panelMaterials = [];
+        const rendererState = {
+            target: renderer.getRenderTarget(),
+            cubeFace: renderer.getActiveCubeFace(),
+            mipLevel: renderer.getActiveMipmapLevel(),
+            toneMapping: renderer.toneMapping,
+            autoClear: renderer.autoClear,
+            xrEnabled: renderer.xr.enabled
+        };
 
-    const environment = new THREE.CanvasTexture(environmentCanvas);
-    environment.mapping = THREE.EquirectangularReflectionMapping;
-    environment.colorSpace = THREE.SRGBColorSpace;
-    scene.environment = environment;
+        try {
+            studio.background = new THREE.Color(glassStyle.studio.background);
 
-    const ambient = new THREE.HemisphereLight(0xf5f0e7, 0x141414, 2.5);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 4.2);
-    const fillLight = new THREE.DirectionalLight(0xaabbd0, 2.1);
-    const rimLight = new THREE.DirectionalLight(0xd4b2a9, 2.4);
+            glassStyle.studio.panels.forEach(({ color, intensity, size, position }) => {
+                const material = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(color).multiplyScalar(intensity),
+                    side: THREE.DoubleSide,
+                    toneMapped: false
+                });
+                panelMaterials.push(material);
+
+                const panel = new THREE.Mesh(panelGeometry, material);
+                panel.scale.set(size[0], size[1], 1);
+                panel.position.fromArray(position);
+                panel.lookAt(0, 0, 0);
+                studio.add(panel);
+            });
+
+            pmrem = new THREE.PMREMGenerator(renderer);
+            environmentTarget = pmrem.fromScene(studio, glassStyle.studio.blur);
+            scene.environment = environmentTarget.texture;
+        } catch (error) {
+            // As luzes diretas abaixo mantêm a logo visível sem o ambiente.
+            console.warn('Ambiente de reflexos indisponível; mantendo as luzes da logo.', error);
+        } finally {
+            renderer.setRenderTarget(rendererState.target, rendererState.cubeFace, rendererState.mipLevel);
+            renderer.toneMapping = rendererState.toneMapping;
+            renderer.autoClear = rendererState.autoClear;
+            renderer.xr.enabled = rendererState.xrEnabled;
+            pmrem?.dispose();
+            panelGeometry.dispose();
+            panelMaterials.forEach((material) => material.dispose());
+            studio.clear();
+        }
+    }
+
+    function scheduleStudioEnvironment() {
+        if (!model || !document.body.classList.contains('intro-complete')) return;
+        introObserver?.disconnect();
+        if (environmentStarted || environmentTimer) return;
+
+        // Espera a entrada visual da logo terminar; gera os reflexos uma só vez.
+        environmentTimer = window.setTimeout(() => {
+            environmentTimer = 0;
+            environmentStarted = true;
+            createStudioEnvironment();
+            render();
+        }, glassStyle.studio.readyDelay);
+    }
+
+    const ambient = new THREE.HemisphereLight(
+        glassStyle.lighting.ambientColor,
+        glassStyle.lighting.groundColor,
+        glassStyle.lighting.ambientIntensity
+    );
+    const keyLight = new THREE.DirectionalLight(0xffffff, glassStyle.lighting.keyIntensity);
+    const fillLight = new THREE.DirectionalLight(glassStyle.lighting.fillColor, glassStyle.lighting.fillIntensity);
+    const rimLight = new THREE.DirectionalLight(glassStyle.lighting.rimColor, glassStyle.lighting.rimIntensity);
 
     keyLight.position.set(3.5, 4.5, 6);
     fillLight.position.set(-5, 1, 3);
@@ -200,6 +292,8 @@ function startLogoExperience() {
             model.position.sub(center);
             model.updateMatrixWorld(true);
 
+            const sourceMaterials = new Set();
+
             model.traverse((object) => {
                 if (!object.isMesh) return;
 
@@ -210,15 +304,25 @@ function startLogoExperience() {
                     ? object.material
                     : [object.material];
 
-                materials.filter(Boolean).forEach((material) => {
-                    material.envMapIntensity = 1.15;
-                    material.needsUpdate = true;
+                materials.filter(Boolean).forEach((material) => sourceMaterials.add(material));
+
+                const replacements = materials.map(() => {
+                    const material = new THREE.MeshPhysicalMaterial(glassStyle.material);
+                    glassMaterials.add(material);
+                    return material;
                 });
+
+                object.material = Array.isArray(object.material)
+                    ? replacements
+                    : replacements[0];
             });
+
+            sourceMaterials.forEach((material) => material.dispose());
 
             resizeRenderer();
             render();
             window.dispatchEvent(new CustomEvent('ouldesign:model-ready'));
+            scheduleStudioEnvironment();
         },
         (progress) => {
             if (!loaderLabel || !progress.total) return;
@@ -235,10 +339,19 @@ function startLogoExperience() {
         }
     );
 
+    introObserver = new MutationObserver(scheduleStudioEnvironment);
+    introObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    scheduleStudioEnvironment();
+
     window.addEventListener('pagehide', () => {
         if (frameId) cancelAnimationFrame(frameId);
         visibilityObserver.disconnect();
-        environment.dispose();
+        introObserver.disconnect();
+        window.clearTimeout(environmentTimer);
+        scene.environment = null;
+        environmentTarget?.dispose();
+        glassMaterials.forEach((material) => material.dispose());
+        glassMaterials.clear();
         renderer.dispose();
     }, { once: true });
 }

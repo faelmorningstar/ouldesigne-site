@@ -33,7 +33,7 @@ if (cursor && hasFinePointer) {
 
                 const isPerception = target?.closest('.perception');
 
-                ursor.classList.toggle(
+                cursor.classList.toggle(
                     'is-visible',
                     Boolean(isPerception)
                 );
