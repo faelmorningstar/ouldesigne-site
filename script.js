@@ -439,38 +439,101 @@ window.addEventListener('scroll', requestScrollUpdate, { passive: true });
 window.addEventListener('resize', requestScrollUpdate);
 updateScrollEffects();
 
-// Reprodução dos novos vídeos do portfólio
+// Prévias do portfólio: somente hover de mouse, sem reprodução pelo scroll.
 const portfolioVideos = $$('.portfolio-case video');
+const portfolioPointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+const portfolioMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+const hoveredPortfolioVideos = new Set();
+let activePortfolioVideo = null;
 
-if (
-    'IntersectionObserver' in window &&
-    !prefersReducedMotion
-) {
+function pausePortfolioVideo(video) {
+    hoveredPortfolioVideos.delete(video);
+    if (activePortfolioVideo === video) activePortfolioVideo = null;
+    video.pause();
+}
+
+function pausePortfolioVideos() {
+    portfolioVideos.forEach(pausePortfolioVideo);
+}
+
+function pauseOtherPortfolioVideos(currentVideo) {
+    portfolioVideos.forEach((video) => {
+        if (video !== currentVideo) pausePortfolioVideo(video);
+    });
+}
+
+function canPreviewPortfolioVideo(video) {
+    if (
+        !portfolioPointerQuery.matches ||
+        portfolioMotionQuery.matches ||
+        document.hidden ||
+        !hoveredPortfolioVideos.has(video) ||
+        !('IntersectionObserver' in window)
+    ) {
+        return false;
+    }
+
+    const rect = video.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 &&
+        rect.bottom > 0 && rect.top < window.innerHeight &&
+        rect.right > 0 && rect.left < window.innerWidth;
+}
+
+portfolioVideos.forEach((video) => {
+    const media = video.closest('.portfolio-case__media');
+    video.pause();
+
+    media?.addEventListener('pointerenter', (event) => {
+        if (event.pointerType !== 'mouse') return;
+
+        hoveredPortfolioVideos.add(video);
+        if (!canPreviewPortfolioVideo(video)) return;
+
+        activePortfolioVideo = video;
+        pauseOtherPortfolioVideos(video);
+
+        video.play().then(() => {
+            if (activePortfolioVideo !== video || !canPreviewPortfolioVideo(video)) {
+                pausePortfolioVideo(video);
+            }
+        }).catch(() => undefined);
+    });
+
+    media?.addEventListener('pointerleave', (event) => {
+        if (event.pointerType === 'mouse') pausePortfolioVideo(video);
+    });
+
+    video.addEventListener('play', () => {
+        if (activePortfolioVideo !== video || !canPreviewPortfolioVideo(video)) {
+            pausePortfolioVideo(video);
+            return;
+        }
+        pauseOtherPortfolioVideos(video);
+    });
+});
+
+if ('IntersectionObserver' in window) {
     const videoObserver = new IntersectionObserver(
         (entries) => {
             entries.forEach((entry) => {
-                const video = entry.target;
-
-                if (entry.isIntersecting) {
-                    video.play().catch(() => undefined);
-                } else {
-                    video.pause();
+                if (!entry.isIntersecting || entry.intersectionRatio === 0) {
+                    pausePortfolioVideo(entry.target);
                 }
             });
         },
         {
-            threshold: 0.28
+            threshold: 0
         }
     );
 
     portfolioVideos.forEach((video) => {
         videoObserver.observe(video);
     });
-} else {
-    portfolioVideos.forEach((video) => {
-        video.pause();
-    });
 }
+
+document.addEventListener('visibilitychange', pausePortfolioVideos);
+portfolioPointerQuery.addEventListener('change', pausePortfolioVideos);
+portfolioMotionQuery.addEventListener('change', pausePortfolioVideos);
 
 // Mantém somente uma resposta do FAQ aberta
 faqItems.forEach((item) => {
