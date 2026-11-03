@@ -584,13 +584,14 @@ ul {
     z-index: 4;
     min-height: 112vh;
     overflow: hidden;
-    background: #070707;
+    background: var(--journey-bg, #070707);
     color: #0c0c0c;
 }
 
 .perception__grain {
     position: absolute;
     inset: 0;
+    pointer-events: none;
     background-image: radial-gradient(rgba(255, 255, 255, 0.11) 0.5px, transparent 0.5px);
     background-size: 4px 4px;
     opacity: 0.12;
@@ -615,7 +616,8 @@ ul {
 }
 
 .perception__copy--light {
-    color: var(--paper);
+    pointer-events: none;
+    color: var(--journey-ink, var(--paper));
     -webkit-mask-image: radial-gradient(circle 170px at var(--spot-x) var(--spot-y), #000 0, #000 48%, transparent 100%);
     mask-image: radial-gradient(circle 170px at var(--spot-x) var(--spot-y), #000 0, #000 48%, transparent 100%);
 }
@@ -626,9 +628,8 @@ ul {
     position: relative;
     z-index: 5;
     min-height: 260vh;
-    background: var(--paper);
-    color: var(--ink);
-    transition: background-color 0.12s linear;
+    background: var(--journey-bg, var(--yellow));
+    color: var(--journey-ink, var(--ink));
 }
 
 .language__stage {
@@ -660,7 +661,22 @@ ul {
     line-height: 0.72;
     white-space: nowrap;
     opacity: var(--stream-opacity);
-    transition: opacity 0.12s linear;
+}
+
+.language__final-identity {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    color: transparent;
+    font-size: clamp(6rem, 14vw, 15rem);
+    font-weight: 650;
+    letter-spacing: -0.075em;
+    line-height: 0.72;
+    white-space: nowrap;
+    -webkit-text-stroke: 1.8px var(--journey-ink, var(--ink));
+    opacity: var(--final-identity-opacity, 0);
 }
 
 .type-stream__row {
@@ -677,7 +693,7 @@ ul {
 
 .type-stream__row--outline span {
     color: transparent;
-    -webkit-text-stroke: 1.8px var(--ink);
+    -webkit-text-stroke: 1.8px var(--journey-ink, var(--ink));
 }
 
 /* Títulos de seção */
@@ -702,9 +718,8 @@ ul {
     position: relative;
     z-index: 8;
     padding: clamp(120px, 16vw, 220px) var(--page-pad) clamp(140px, 18vw, 260px);
-    background: var(--paper);
-    color: var(--ink);
-    box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.12);
+    background: var(--journey-bg, var(--paper));
+    color: var(--journey-ink, var(--ink));
 }
 
 .portfolio-list {
@@ -834,7 +849,7 @@ ul {
 
 .portfolio-case__still img {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 9;
     object-fit: cover;
     filter: saturate(0.82);
 }
@@ -1068,6 +1083,9 @@ ul {
 
 /* FAQ — cards editoriais guiados pelo scroll */
 .faq {
+    --faq-card-height: clamp(340px, 48vh, 500px);
+    --faq-card-bottom: 7vh;
+    --faq-stage-offset: max(0px, min(28vh, calc(100vh - var(--faq-card-height) - var(--faq-card-bottom) - 90px)));
     position: relative;
     z-index: 14;
     min-height: 550vh;
@@ -1080,14 +1098,14 @@ ul {
 .section-heading--compact {
     position: relative;
     z-index: 10;
-    margin-bottom: clamp(32px, 5vw, 70px);
+    margin-bottom: clamp(16px, 2vw, 28px);
 }
 
 .faq__stage {
     position: sticky;
-    top: 0;
+    top: var(--faq-stage-offset);
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - var(--faq-stage-offset));
     overflow: hidden;
 }
 
@@ -1106,9 +1124,9 @@ ul {
     --card-scale: 1;
     position: absolute;
     left: 50%;
-    bottom: 7vh;
+    bottom: var(--faq-card-bottom);
     width: min(92vw, 1180px);
-    height: clamp(340px, 48vh, 500px);
+    height: var(--faq-card-height);
     margin: 0;
     overflow: hidden;
     border: 1px solid var(--line-dark);
@@ -1577,7 +1595,7 @@ ul {
 
     .perception__copy--light {
         position: relative;
-        color: var(--paper);
+        color: var(--journey-ink, var(--paper));
         -webkit-mask-image: none;
         mask-image: none;
     }
@@ -1592,6 +1610,11 @@ ul {
     }
 
     .type-stream__row--outline span {
+        -webkit-text-stroke-width: 1.2px;
+    }
+
+    .language__final-identity {
+        font-size: min(clamp(5rem, 25vw, 8rem), 22.5vw);
         -webkit-text-stroke-width: 1.2px;
     }
 
@@ -1610,7 +1633,7 @@ ul {
     }
 
     .portfolio-case__media {
-        aspect-ratio: 4 / 3;
+        aspect-ratio: 16 / 9;
     }
 
     .portfolio-case__info {
@@ -1643,18 +1666,18 @@ ul {
     }
 
     .faq {
+        --faq-card-height: clamp(400px, 64vh, 520px);
+        --faq-card-bottom: 4vh;
         min-height: 530vh;
         padding: 100px 1rem 0;
     }
 
     .section-heading--compact {
-        margin-bottom: 24px;
+        margin-bottom: 12px;
     }
 
     .faq-card {
-        bottom: 4vh;
         width: calc(100vw - 2rem);
-        height: clamp(400px, 64vh, 520px);
     }
 
     .faq-card summary {
@@ -1752,8 +1775,8 @@ ul {
         width: 82%;
     }
 
-    .faq-card {
-        height: min(68vh, 500px);
+    .faq {
+        --faq-card-height: min(68vh, 500px);
     }
 
     .faq-card__answer {
@@ -1766,6 +1789,13 @@ ul {
     .perception,
     .perception * {
         cursor: none;
+    }
+}
+
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+    .perception__copy--light {
+        -webkit-mask-image: none;
+        mask-image: none;
     }
 }
 
@@ -1794,6 +1824,7 @@ ul {
 
     .faq__stage {
         position: relative;
+        top: 0;
         height: auto;
         overflow: visible;
     }

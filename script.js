@@ -254,24 +254,137 @@ window.setTimeout(() => {
     }
 }, 7000);
 
-// Lanterna da seção escura
+// Lanterna da seção escura: a atração afeta somente a máscara da luz.
 const perception = $('#percepcao');
 
-perception?.addEventListener('pointermove', (event) => {
-    if (!hasFinePointer) return;
+if (perception) {
+    const title = $('#perception-title');
+    const pointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let visible = false;
+    let pointerInside = false;
+    let lightFrame = 0;
+    let previousTime = 0;
+    let light = null;
+    let target = null;
 
-    const rect = perception.getBoundingClientRect();
+    function interactiveLight() {
+        return pointerQuery.matches && !motionQuery.matches;
+    }
 
-    perception.style.setProperty(
-        '--spot-x',
-        `${event.clientX - rect.left}px`
-    );
+    function phraseBounds() {
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        const bounds = range.getBoundingClientRect();
+        const section = perception.getBoundingClientRect();
+        return {
+            x: bounds.left - section.left + bounds.width / 2,
+            y: bounds.top - section.top + bounds.height / 2,
+            left: bounds.left - section.left,
+            right: bounds.right - section.left,
+            top: bounds.top - section.top,
+            bottom: bounds.bottom - section.top
+        };
+    }
 
-    perception.style.setProperty(
-        '--spot-y',
-        `${event.clientY - rect.top}px`
-    );
-});
+    function writeLight() {
+        perception.style.setProperty('--spot-x', `${light.x}px`);
+        perception.style.setProperty('--spot-y', `${light.y}px`);
+    }
+
+    function stopLight() {
+        cancelAnimationFrame(lightFrame);
+        lightFrame = 0;
+        previousTime = 0;
+    }
+
+    function animateLight(time) {
+        lightFrame = 0;
+        if (!visible || document.hidden) return;
+        const elapsed = previousTime ? time - previousTime : 16;
+        previousTime = time;
+        const amount = 1 - Math.exp(-elapsed / 110);
+        light.x += (target.x - light.x) * amount;
+        light.y += (target.y - light.y) * amount;
+        if (Math.hypot(target.x - light.x, target.y - light.y) < 0.3) {
+            light = { ...target };
+            previousTime = 0;
+        } else {
+            lightFrame = requestAnimationFrame(animateLight);
+        }
+        writeLight();
+    }
+
+    function moveLight(x, y, animate = interactiveLight()) {
+        target = { x, y };
+        if (!light) {
+            light = { x: perception.clientWidth / 2, y: perception.clientHeight / 2 };
+        }
+        if (!animate || !visible || document.hidden) {
+            stopLight();
+            light = { ...target };
+            writeLight();
+        } else if (!lightFrame) {
+            lightFrame = requestAnimationFrame(animateLight);
+        }
+    }
+
+    function restLight(animate = interactiveLight()) {
+        pointerInside = false;
+        const focus = phraseBounds();
+        moveLight(focus.x, focus.y, animate);
+    }
+
+    perception.addEventListener('pointermove', (event) => {
+        if (!interactiveLight() || event.pointerType !== 'mouse' || !visible) return;
+        pointerInside = true;
+        const section = perception.getBoundingClientRect();
+        const x = event.clientX - section.left;
+        const y = event.clientY - section.top;
+        const focus = phraseBounds();
+        const distance = Math.hypot(
+            x - clamp(x, focus.left, focus.right),
+            y - clamp(y, focus.top, focus.bottom)
+        );
+        const proximity = clamp(1 - distance / 220, 0, 1);
+        const attraction = 0.12 * proximity * proximity * (3 - 2 * proximity);
+        const dx = (focus.x - x) * attraction;
+        const dy = (focus.y - y) * attraction;
+        const limit = Math.min(1, 36 / Math.max(Math.hypot(dx, dy), 1));
+        moveLight(x + dx * limit, y + dy * limit);
+    });
+
+    perception.addEventListener('pointerleave', () => restLight());
+    window.addEventListener('resize', () => {
+        if (!pointerInside) restLight(false);
+    });
+    document.fonts.ready.then(() => {
+        if (visible && !pointerInside) restLight(false);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopLight();
+        else if (visible) restLight();
+    });
+    pointerQuery.addEventListener('change', () => restLight(false));
+    motionQuery.addEventListener('change', () => restLight(false));
+
+    if ('IntersectionObserver' in window) {
+        const lightObserver = new IntersectionObserver(([entry]) => {
+            visible = entry.isIntersecting;
+            if (visible) restLight();
+            else {
+                stopLight();
+                pointerInside = false;
+                light = null;
+                perception.style.removeProperty('--spot-x');
+                perception.style.removeProperty('--spot-y');
+            }
+        });
+        lightObserver.observe(perception);
+    } else {
+        restLight(false);
+    }
+}
 
 // Efeitos guiados pelo scroll
 const languageSection = $('#linguagem');
@@ -280,6 +393,34 @@ const siteHeader = $('#site-header');
 const aboutSignature = $('#about-signature');
 const faqSection = $('#faq');
 const faqItems = $$('.faq-card');
+
+const scrollMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+const journey = languageSection?.parentElement;
+const theme = getComputedStyle(document.documentElement);
+const journeyPalette = Object.fromEntries(['paper', 'yellow', 'ink'].map((name) => [
+    name,
+    theme.getPropertyValue(`--${name}`).trim().slice(1).match(/.{2}/g)
+        .map((channel) => parseInt(channel, 16))
+]));
+journeyPalette.black = [7, 7, 7];
+
+function mixJourneyColor(from, to, progress) {
+    return from.map((channel, index) => Math.round(channel + (to[index] - channel) * progress));
+}
+
+function journeyLuminance(color) {
+    return color.reduce((total, channel, index) => {
+        const value = channel / 255;
+        const linear = value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        return total + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+}
+
+function journeyContrast(first, second) {
+    const a = journeyLuminance(first);
+    const b = journeyLuminance(second);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 
 let scrollFrame = 0;
 
@@ -291,11 +432,15 @@ function updateLanguageEffect() {
         return;
     }
 
-if (prefersReducedMotion) {
-    languageSection.style.backgroundColor = 'rgb(241, 216, 49)';
-    languageSection.style.setProperty('--stream-opacity', '1');
-    return;
-}
+    if (scrollMotionQuery.matches) {
+        ['--journey-bg', '--journey-ink', '--journey-muted'].forEach((property) => {
+            journey?.style.removeProperty(property);
+        });
+        typeRows.forEach((row) => row.style.removeProperty('transform'));
+        languageSection.style.setProperty('--stream-opacity', '0');
+        languageSection.style.setProperty('--final-identity-opacity', '1');
+        return;
+    }
 
     const rect = languageSection.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
@@ -312,23 +457,29 @@ if (prefersReducedMotion) {
         1
     );
 
-    // A cor começa a mudar quando a seção ainda está entrando na tela,
-    // antes de as palavras iniciarem o deslocamento horizontal.
-    const colorProgress = clamp(
-        (viewportHeight * 1.05 - rect.top) / (viewportHeight * 0.92),
-        0,
-        1
-    );
+    // As superfícies vizinhas compartilham a cor enquanto a borda cruza a tela.
+    const smooth = (value) => value * value * (3 - 2 * value);
+    const entry = smooth(clamp((viewportHeight - rect.top) / viewportHeight, 0, 1));
+    const exit = smooth(clamp((viewportHeight - rect.bottom) / viewportHeight, 0, 1));
+    const background = exit > 0
+        ? mixJourneyColor(journeyPalette.yellow, journeyPalette.paper, exit)
+        : mixJourneyColor(journeyPalette.black, journeyPalette.yellow, entry);
+    const foreground = journeyContrast(background, journeyPalette.paper) >
+        journeyContrast(background, journeyPalette.ink)
+        ? journeyPalette.paper : journeyPalette.ink;
 
-    const paper = [240, 235, 227];
-    const yellow = [241, 216, 49];
-    const mixedColor = paper.map((channel, index) =>
-        Math.round(channel + (yellow[index] - channel) * colorProgress)
-    );
-
-    languageSection.style.backgroundColor = `rgb(${mixedColor.join(', ')})`;
+    // A frase permanece discreta fora da lanterna, mas legível durante a passagem.
+    let muted = foreground;
+    for (let amount = 0.36; amount <= 1; amount += 0.04) {
+        muted = mixJourneyColor(background, foreground, amount);
+        if (journeyContrast(background, muted) >= 3.1) break;
+    }
+    journey?.style.setProperty('--journey-bg', `rgb(${background.join(', ')})`);
+    journey?.style.setProperty('--journey-ink', `rgb(${foreground.join(', ')})`);
+    journey?.style.setProperty('--journey-muted', `rgb(${muted.join(', ')})`);
 
     const startingOffsets = [-0.42, -0.67, -0.52];
+    const exitOffset = smooth(clamp((progress - 0.8) / 0.16, 0, 1)) * viewportWidth * 1.04;
 
 typeRows.forEach((row, index) => {
     const speed = Number(row.dataset.speed || 0.6);
@@ -338,15 +489,19 @@ typeRows.forEach((row, index) => {
 
     const x =
         (startingOffset * viewportWidth) +
-        (progress * speed * viewportWidth * 1.7);
+        (progress * speed * viewportWidth * 1.7) + exitOffset;
 
     row.style.transform = `translate3d(${x}px, 0, 0)`;
 });
 
     languageSection.style.setProperty(
-    '--stream-opacity',
-    '1'
-);
+        '--stream-opacity',
+        String(1 - smooth(clamp((progress - 0.84) / 0.08, 0, 1)))
+    );
+    languageSection.style.setProperty(
+        '--final-identity-opacity',
+        String(smooth(clamp((progress - 0.92) / 0.07, 0, 1)))
+    );
 }
 
 function updateAboutSignature() {
@@ -437,6 +592,7 @@ function requestScrollUpdate() {
 
 window.addEventListener('scroll', requestScrollUpdate, { passive: true });
 window.addEventListener('resize', requestScrollUpdate);
+scrollMotionQuery.addEventListener('change', requestScrollUpdate);
 updateScrollEffects();
 
 // Prévias do portfólio: somente hover de mouse, sem reprodução pelo scroll.
