@@ -17,44 +17,17 @@ if (!container || !hero) {
 }
 
 function startLogoExperience() {
-    const glassStyle = {
-        material: {
-            color: 0x9fbfc5,
-            metalness: 0.08,
-            roughness: 0.12,
-            transmission: 0.62,
-            thickness: 0.45,
-            ior: 1.45,
-            clearcoat: 1,
-            clearcoatRoughness: 0.05,
-            envMapIntensity: 1.5,
-            attenuationColor: 0xd8f0f3,
-            attenuationDistance: 2.2,
-            side: THREE.DoubleSide
-        },
-        exposure: 0.9,
-        lighting: {
-            ambientColor: 0xd4e2ec,
-            groundColor: 0x080b10,
-            ambientIntensity: 0.35,
-            keyIntensity: 2.2,
-            fillColor: 0x8acbd8,
-            fillIntensity: 0.9,
-            rimColor: 0xc0e7ef,
-            rimIntensity: 1.4
-        },
-        studio: {
-            background: 0x080d12,
-            blur: 0.04,
-            readyDelay: 1500,
-            panels: [
-                { color: 0xffffff, intensity: 3.5, size: [1.7, 7], position: [-4, 1, 2] },
-                { color: 0x83cadd, intensity: 2, size: [1.25, 6], position: [4, 0.5, -1] },
-                { color: 0xdce8ed, intensity: 0.8, size: [5, 2.5], position: [0, 5, 1] }
-            ]
-        }
-    };
-    const glassMaterials = new Set();
+    const modelUrl = new URL(
+        './assets/ouldesign-logo-3d.glb?v=20261109-optical-glass-3',
+        import.meta.url
+    ).href;
+    const debug = new URLSearchParams(location.search).has('logo-debug');
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const events = new AbortController();
+    const materials = new Set();
+    const geometries = new Set();
+    const textures = new Set();
+    let disposed = false;
     let renderer;
 
     try {
@@ -79,37 +52,100 @@ function startLogoExperience() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = glassStyle.exposure;
+    renderer.toneMappingExposure = 1;
     container.replaceChildren(renderer.domElement);
 
-    // Cena usada somente para reflexos; os painéis não entram na cena da logo.
     let environmentTarget = null;
-    let environmentStarted = false;
-    let environmentTimer = 0;
-    let introObserver = null;
+    let model = null;
+    let modelSize = new THREE.Vector3(1, 1, 1);
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+    let frameId = 0;
+    let heroVisible = true;
+    let loadedBytes = 0;
+
+    // r172 clears an alpha canvas's transmission buffer to white at alpha 0.5.
+    // With no opaque objects behind the logo, that produces a grey glass fill.
+    // Keep its physical RGB/IOR integration, but sample the optical environment
+    // instead of that empty screen buffer. Fresnel and volume absorption remain native.
+    function addEnvironmentRefraction(material) {
+        const chunk = THREE.ShaderChunk.transmission_pars_fragment;
+        const dispersedSample = 'vec4 transmissionSample = getTransmissionSample( refractionCoords, roughness, iors[ i ] );';
+        const singleSample = 'transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );';
+        const functionStart = 'vec4 getIBLVolumeRefraction(';
+        if (THREE.REVISION !== '172' || ![dispersedSample, singleSample, functionStart].every((part) => chunk.includes(part))) {
+            throw new Error('O complemento óptico requer os shaders locais do Three.js r172.');
+        }
+        const opticalSample = `
+            vec4 samplePrismStudio( vec2 screenCoords, float roughness, float ior,
+                vec3 n, vec3 v, vec3 rayOrigin, float opticalIor ) {
+                #if defined( USE_ENVMAP ) && defined( ENVMAP_TYPE_CUBE_UV )
+                    vec3 opticalRay = refract( -v, normalize( n ), 1.0 / opticalIor );
+                    // Local parallax in a spherical optical studio. Normals, view
+                    // angle and the native volume exit point all affect refraction.
+                    float b = dot( rayOrigin, opticalRay );
+                    float rayDistance = -b + sqrt( max( b * b - dot( rayOrigin, rayOrigin ) + prismOpticalRadius * prismOpticalRadius, 0.0 ) );
+                    vec3 studioDirection = normalize( rayOrigin + opticalRay * rayDistance );
+                    vec3 studioLight = textureCubeUV( envMap, envMapRotation * studioDirection, roughness ).rgb;
+                    return vec4( studioLight, 1.0 );
+                #else
+                    return getTransmissionSample( screenCoords, roughness, ior );
+                #endif
+            }
+        `;
+        const opticalChunk = chunk
+            .replace('vec4 transmittedLight;', 'vec4 transmittedLight = vec4( 0.0 );')
+            .replace(functionStart, `${opticalSample}\n${functionStart}`)
+            .replace(dispersedSample, `
+                float opticalIor = ior + ( iors[ i ] - ior ) * prismDispersionScale;
+                vec4 transmissionSample = samplePrismStudio( refractionCoords, roughness, iors[ i ], n, v, refractedRayExit, opticalIor );
+            `)
+            .replace(singleSample, 'transmittedLight = samplePrismStudio( refractionCoords, roughness, ior, n, v, refractedRayExit, ior );');
+
+        material.onBeforeCompile = (shader) => {
+            // The exported dispersion stays 0.6. A modest angular magnification
+            // makes its small bevels legible at desktop and mobile hero scale.
+            shader.uniforms.prismDispersionScale = { value: 4 };
+            shader.uniforms.prismOpticalRadius = { value: 3.5 };
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <transmission_pars_fragment>',
+                `uniform float prismDispersionScale;
+                uniform float prismOpticalRadius;
+                ${opticalChunk}`
+            );
+        };
+        material.customProgramCacheKey = () => 'ouldesign-optical-refraction-r172-v2';
+        material.needsUpdate = true;
+    }
 
     function createStudioEnvironment() {
-        let pmrem = null;
         const studio = new THREE.Scene();
         const panelGeometry = new THREE.PlaneGeometry(1, 1);
         const panelMaterials = [];
-        const rendererState = {
-            target: renderer.getRenderTarget(),
-            cubeFace: renderer.getActiveCubeFace(),
-            mipLevel: renderer.getActiveMipmapLevel(),
-            toneMapping: renderer.toneMapping,
-            autoClear: renderer.autoClear,
-            xrEnabled: renderer.xr.enabled
-        };
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        const previousTarget = renderer.getRenderTarget();
+        const previousFace = renderer.getActiveCubeFace();
+        const previousMip = renderer.getActiveMipmapLevel();
 
         try {
-            studio.background = new THREE.Color(glassStyle.studio.background);
-
-            glassStyle.studio.panels.forEach(({ color, intensity, size, position }) => {
+            studio.background = new THREE.Color(0x000000);
+            // White softboxes provide contrast for actual RGB separation. They
+            // exist only in the PMREM capture, never in the visible hero scene.
+            const panels = [
+                { intensity: 7, size: [1.1, 6], position: [-3.8, 1, 3] },
+                { intensity: 5, size: [0.65, 5], position: [3.5, -0.4, 2] },
+                { intensity: 8, size: [5, 0.65], position: [0, 3.8, 1] },
+                { intensity: 4, size: [4, 0.35], position: [-0.5, -3.5, 1] },
+                { intensity: 2.6, size: [0.55, 5], position: [-0.75, 0.3, -4] },
+                { intensity: 1.8, size: [0.25, 4], position: [0.85, -0.5, -4] },
+                { intensity: 2.4, size: [4, 0.22], position: [0.2, 0.9, -4] },
+                { intensity: 1.2, size: [0.035, 5], position: [-1.65, -0.1, -4] },
+                { intensity: 3, size: [0.8, 4], position: [1.2, 0.5, 4] }
+            ];
+            panels.forEach(({ intensity, size, position }) => {
                 const material = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(color).multiplyScalar(intensity),
-                    side: THREE.DoubleSide,
-                    toneMapped: false
+                    color: new THREE.Color(1, 1, 1).multiplyScalar(intensity),
+                    side: THREE.DoubleSide
                 });
                 panelMaterials.push(material);
 
@@ -119,64 +155,31 @@ function startLogoExperience() {
                 panel.lookAt(0, 0, 0);
                 studio.add(panel);
             });
-
-            pmrem = new THREE.PMREMGenerator(renderer);
-            environmentTarget = pmrem.fromScene(studio, glassStyle.studio.blur);
+            environmentTarget = pmrem.fromScene(studio, 0.004, 0.1, 20);
             scene.environment = environmentTarget.texture;
-        } catch (error) {
-            // As luzes diretas abaixo mantêm a logo visível sem o ambiente.
-            console.warn('Ambiente de reflexos indisponível; mantendo as luzes da logo.', error);
+            scene.environmentIntensity = 1.3;
         } finally {
-            renderer.setRenderTarget(rendererState.target, rendererState.cubeFace, rendererState.mipLevel);
-            renderer.toneMapping = rendererState.toneMapping;
-            renderer.autoClear = rendererState.autoClear;
-            renderer.xr.enabled = rendererState.xrEnabled;
-            pmrem?.dispose();
+            renderer.setRenderTarget(previousTarget, previousFace, previousMip);
+            pmrem.dispose();
             panelGeometry.dispose();
             panelMaterials.forEach((material) => material.dispose());
             studio.clear();
         }
     }
 
-    function scheduleStudioEnvironment() {
-        if (!model || !document.body.classList.contains('intro-complete')) return;
-        introObserver?.disconnect();
-        if (environmentStarted || environmentTimer) return;
-
-        // Espera a entrada visual da logo terminar; gera os reflexos uma só vez.
-        environmentTimer = window.setTimeout(() => {
-            environmentTimer = 0;
-            environmentStarted = true;
-            createStudioEnvironment();
-            render();
-        }, glassStyle.studio.readyDelay);
-    }
-
-    const ambient = new THREE.HemisphereLight(
-        glassStyle.lighting.ambientColor,
-        glassStyle.lighting.groundColor,
-        glassStyle.lighting.ambientIntensity
-    );
-    const keyLight = new THREE.DirectionalLight(0xffffff, glassStyle.lighting.keyIntensity);
-    const fillLight = new THREE.DirectionalLight(glassStyle.lighting.fillColor, glassStyle.lighting.fillIntensity);
-    const rimLight = new THREE.DirectionalLight(glassStyle.lighting.rimColor, glassStyle.lighting.rimIntensity);
-
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
     keyLight.position.set(3.5, 4.5, 6);
-    fillLight.position.set(-5, 1, 3);
-    rimLight.position.set(4, -3, -2);
-    scene.add(ambient, keyLight, fillLight, rimLight);
-
-    let model = null;
-    let modelSize = new THREE.Vector3(1, 1, 1);
-    let targetRotationX = 0;
-    let targetRotationY = 0;
-    let frameId = 0;
-    let heroVisible = true;
+    rimLight.position.set(-4, -2, -3);
+    scene.add(keyLight, rimLight);
 
     function fitCamera() {
         const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+        // The mobile canvas is 118vw; frame against the part the hero can show.
+        const visibleAspect = Math.min(container.clientWidth, hero.clientWidth) /
+            Math.max(container.clientHeight, 1);
         const distanceForHeight = modelSize.y / (2 * Math.tan(verticalFov / 2));
-        const distanceForWidth = modelSize.x / (2 * Math.tan(verticalFov / 2) * camera.aspect);
+        const distanceForWidth = modelSize.x / (2 * Math.tan(verticalFov / 2) * visibleAspect);
         const distance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + modelSize.z * 0.5;
 
         camera.position.set(0, 0, distance);
@@ -190,46 +193,50 @@ function startLogoExperience() {
         const width = Math.max(container.clientWidth, 1);
         const height = Math.max(container.clientHeight, 1);
         const pixelRatio = Math.min(window.devicePixelRatio, 1.75);
-        const drawingWidth = Math.floor(width * pixelRatio);
-        const drawingHeight = Math.floor(height * pixelRatio);
 
         if (
-            renderer.domElement.width !== drawingWidth ||
-            renderer.domElement.height !== drawingHeight
+            renderer.domElement.width !== Math.floor(width * pixelRatio) ||
+            renderer.domElement.height !== Math.floor(height * pixelRatio)
         ) {
             renderer.setPixelRatio(pixelRatio);
             renderer.setSize(width, height, false);
         }
 
         camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-
         if (model) fitCamera();
+        else camera.updateProjectionMatrix();
     }
 
     function render() {
+        if (disposed || !heroVisible || document.hidden) return;
         resizeRenderer();
         renderer.render(scene, camera);
     }
 
     function animateTowardCursor() {
         frameId = 0;
-        if (!model || !heroVisible) return;
+        if (disposed || !model || !heroVisible || document.hidden) return;
 
         const xDistance = targetRotationX - rotationGroup.rotation.x;
         const yDistance = targetRotationY - rotationGroup.rotation.y;
 
-        rotationGroup.rotation.x += xDistance * 0.085;
-        rotationGroup.rotation.y += yDistance * 0.085;
+        if (motionQuery.matches) {
+            rotationGroup.rotation.set(targetRotationX, targetRotationY, 0);
+        } else {
+            rotationGroup.rotation.x += xDistance * 0.085;
+            rotationGroup.rotation.y += yDistance * 0.085;
+        }
         render();
 
-        if (Math.abs(xDistance) > 0.0005 || Math.abs(yDistance) > 0.0005) {
+        if (!motionQuery.matches && (Math.abs(xDistance) > 0.0005 || Math.abs(yDistance) > 0.0005)) {
             frameId = requestAnimationFrame(animateTowardCursor);
         }
     }
 
     function requestModelFrame() {
-        if (!frameId) frameId = requestAnimationFrame(animateTowardCursor);
+        if (!disposed && model && heroVisible && !document.hidden && !frameId) {
+            frameId = requestAnimationFrame(animateTowardCursor);
+        }
     }
 
     hero.addEventListener('pointermove', (event) => {
@@ -251,107 +258,159 @@ function startLogoExperience() {
         targetRotationY = (normalizedX - 0.5) * Math.PI * 2;
         targetRotationX = (normalizedY - 0.5) * -0.34;
         requestModelFrame();
-    });
+    }, { signal: events.signal });
 
-    const visibilityObserver = new IntersectionObserver((entries) => {
-        heroVisible = entries[0]?.isIntersecting ?? true;
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+        heroVisible = entry?.isIntersecting ?? true;
 
-        if (heroVisible && model) {
-            render();
-            requestModelFrame();
-        } else if (frameId) {
+        if (heroVisible) requestModelFrame();
+        else {
             cancelAnimationFrame(frameId);
             frameId = 0;
         }
     }, { threshold: 0.02 });
 
     visibilityObserver.observe(hero);
-    window.addEventListener('resize', () => {
-        render();
-        requestModelFrame();
-    }, { passive: true });
+    window.addEventListener('resize', requestModelFrame, { passive: true, signal: events.signal });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            cancelAnimationFrame(frameId);
+            frameId = 0;
+        } else requestModelFrame();
+    }, { signal: events.signal });
+    motionQuery.addEventListener('change', requestModelFrame, { signal: events.signal });
+
+    function trackResources(root) {
+        root.traverse((object) => {
+            if (!object.isMesh) return;
+            geometries.add(object.geometry);
+            const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+            meshMaterials.forEach((material) => {
+                materials.add(material);
+                Object.values(material).forEach((value) => {
+                    if (value?.isTexture) textures.add(value);
+                });
+            });
+        });
+    }
+
+    function disposeResources() {
+        materials.forEach((material) => material.dispose());
+        geometries.forEach((geometry) => geometry.dispose());
+        textures.forEach((texture) => texture.dispose());
+        materials.clear();
+        geometries.clear();
+        textures.clear();
+    }
+
+    function materialSnapshot(material) {
+        return {
+            name: material.name, type: material.type, uuid: material.uuid,
+            transmission: material.transmission, thickness: material.thickness,
+            dispersion: material.dispersion, ior: material.ior, roughness: material.roughness,
+            color: material.color.toArray(), attenuationColor: material.attenuationColor?.toArray(),
+            attenuationDistance: material.attenuationDistance, envMapIntensity: material.envMapIntensity
+        };
+    }
+
+    function fail(error) {
+        if (disposed) return;
+        console.error('Não foi possível preparar a logo 3D.', error);
+        window.dispatchEvent(new CustomEvent('ouldesign:model-error'));
+    }
 
     const loader = new GLTFLoader();
-    const modelUrl = new URL(
-        './assets/ouldesign-logo-3d.glb?v=20260807-modelo-confirmado',
-        import.meta.url
-    ).href;
-
-    loader.load(
-        modelUrl,
-        (gltf) => {
+    loader.load(modelUrl, (gltf) => {
+        trackResources(gltf.scene);
+        if (disposed) {
+            disposeResources();
+            return;
+        }
+        try {
             model = gltf.scene;
             model.rotation.x = Math.PI / 2;
             rotationGroup.add(model);
             model.updateMatrixWorld(true);
 
             const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
             modelSize = box.getSize(new THREE.Vector3());
 
-            model.position.sub(center);
+            model.position.sub(box.getCenter(new THREE.Vector3()));
             model.updateMatrixWorld(true);
 
-            const sourceMaterials = new Set();
-
+            const importedMaterials = [...materials].map(materialSnapshot);
+            const prepared = new Map();
             model.traverse((object) => {
                 if (!object.isMesh) return;
 
                 object.castShadow = false;
                 object.receiveShadow = false;
 
-                const materials = Array.isArray(object.material)
-                    ? object.material
-                    : [object.material];
-
-                materials.filter(Boolean).forEach((material) => sourceMaterials.add(material));
-
-                const replacements = materials.map(() => {
-                    const material = new THREE.MeshPhysicalMaterial(glassStyle.material);
-                    glassMaterials.add(material);
+                const prepare = (source) => {
+                    if (prepared.has(source)) return prepared.get(source);
+                    let material = source;
+                    if (!source.isMeshPhysicalMaterial) {
+                        material = new THREE.MeshPhysicalMaterial();
+                        THREE.MeshStandardMaterial.prototype.copy.call(material, source);
+                        material.defines.PHYSICAL = '';
+                        Object.assign(material, { transmission: 1, thickness: 0.35, dispersion: 0.6, ior: 1.45, roughness: 0.05 });
+                        materials.add(material);
+                    }
+                    // The GLB exports a cyan base color AND blue volume absorption.
+                    // Clear optical glass needs neutral transmission in this studio.
+                    material.color.set(0xffffff);
+                    material.attenuationColor.set(0xffffff);
+                    material.envMapIntensity = 1.3;
+                    addEnvironmentRefraction(material);
+                    prepared.set(source, material);
                     return material;
-                });
+                };
 
                 object.material = Array.isArray(object.material)
-                    ? replacements
-                    : replacements[0];
+                    ? object.material.map(prepare) : prepare(object.material);
             });
-
-            sourceMaterials.forEach((material) => material.dispose());
-
-            resizeRenderer();
+            createStudioEnvironment();
             render();
-            window.dispatchEvent(new CustomEvent('ouldesign:model-ready'));
-            scheduleStudioEnvironment();
-        },
-        (progress) => {
-            if (!loaderLabel || !progress.total) return;
-
-            const percentage = Math.round(
-                (progress.loaded / progress.total) * 100
-            );
-
-            loaderLabel.textContent = `Preparando forma ${percentage}%`;
-        },
-        (error) => {
-            console.error('Não foi possível carregar a logo 3D.', error);
-            window.dispatchEvent(new CustomEvent('ouldesign:model-error'));
+            const request = performance.getEntriesByName(modelUrl).at(-1);
+            const detail = {
+                url: modelUrl, bytes: loadedBytes || request?.decodedBodySize,
+                threeRevision: THREE.REVISION, meshes: [], runtimeMeshNames: [], importedMaterials,
+                effectiveMaterials: [...new Set(prepared.values())].map(materialSnapshot)
+            };
+            model.traverse((object) => {
+                if (!object.isMesh) return;
+                detail.meshes.push(object.userData.name || object.name);
+                detail.runtimeMeshNames.push(object.name);
+            });
+            if (debug) {
+                console.info('OulDesign: diagnóstico da logo', detail);
+                console.table(detail.importedMaterials);
+                console.table(detail.effectiveMaterials);
+            }
+            window.dispatchEvent(new CustomEvent('ouldesign:model-ready', { detail }));
+        } catch (error) {
+            fail(error);
         }
-    );
-
-    introObserver = new MutationObserver(scheduleStudioEnvironment);
-    introObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    scheduleStudioEnvironment();
+    }, (progress) => {
+        loadedBytes = progress.loaded;
+        if (loaderLabel && progress.total) {
+            loaderLabel.textContent = `Preparando forma ${Math.round(progress.loaded / progress.total * 100)}%`;
+        }
+    }, fail);
 
     window.addEventListener('pagehide', () => {
-        if (frameId) cancelAnimationFrame(frameId);
+        disposed = true;
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+        events.abort();
         visibilityObserver.disconnect();
-        introObserver.disconnect();
-        window.clearTimeout(environmentTimer);
         scene.environment = null;
         environmentTarget?.dispose();
-        glassMaterials.forEach((material) => material.dispose());
-        glassMaterials.clear();
+        environmentTarget = null;
+        disposeResources();
+        scene.clear();
         renderer.dispose();
+        // Also release the renderer's private transmission framebuffer on exit.
+        renderer.forceContextLoss();
     }, { once: true });
 }
