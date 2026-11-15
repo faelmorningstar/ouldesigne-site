@@ -678,13 +678,14 @@ ul {
 @media (max-width: 720px) and (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
     .perception.has-touch-light .perception__copy--base {
         color: var(--journey-muted, var(--beige));
+        color: color-mix(in srgb, var(--journey-muted, var(--beige)) 12%, var(--journey-bg, #070707));
         transition: color 0.28s ease;
     }
 
     .perception.has-touch-light .perception__copy--light {
         --touch-light-mask: radial-gradient(circle clamp(70px, 21vw, 96px) at var(--touch-spot-x, 50%) var(--touch-spot-y, 75%), #000 0, #000 42%, transparent 100%);
         display: block;
-        opacity: 0.48;
+        opacity: 0;
         -webkit-mask-image: var(--touch-light-mask);
         mask-image: var(--touch-light-mask);
         transition: opacity 0.34s ease;
