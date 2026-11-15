@@ -639,6 +639,127 @@ ul {
     mask-image: radial-gradient(circle 170px at var(--spot-x) var(--spot-y), #000 0, #000 48%, transparent 100%);
 }
 
+.perception__light-control {
+    display: none;
+}
+
+@media (max-width: 720px) and (hover: none) and (pointer: coarse) {
+    .perception {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-content: center;
+        padding: var(--header-height) var(--page-pad) 6vh;
+    }
+
+    .perception .perception__copy {
+        grid-area: 1 / 1;
+        position: relative;
+        inset: auto;
+        padding: 0;
+    }
+
+    .perception .perception__copy--base {
+        display: block;
+        color: var(--journey-ink, var(--paper));
+    }
+
+    .perception .perception__copy--light {
+        display: none;
+    }
+}
+
+@media (max-width: 720px) and (hover: none) and (pointer: coarse) and (scripting: none) {
+    /* Sem o script de entrada, libera a rolagem até a frase. */
+    body.is-loading {
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 720px) and (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+    .perception.has-touch-light .perception__copy--base {
+        color: var(--journey-muted, var(--beige));
+        transition: color 0.28s ease;
+    }
+
+    .perception.has-touch-light .perception__copy--light {
+        --touch-light-mask: radial-gradient(circle clamp(70px, 21vw, 96px) at var(--touch-spot-x, 50%) var(--touch-spot-y, 75%), #000 0, #000 42%, transparent 100%);
+        display: block;
+        opacity: 0.48;
+        -webkit-mask-image: var(--touch-light-mask);
+        mask-image: var(--touch-light-mask);
+        transition: opacity 0.34s ease;
+    }
+
+    .perception.is-touch-light-active .perception__copy--light {
+        opacity: 1;
+    }
+
+    .perception.has-touch-light.is-touch-light-full .perception__copy--base {
+        color: var(--journey-ink, var(--paper));
+    }
+
+    .has-touch-light .perception__light-control {
+        grid-area: 2 / 1;
+        justify-self: center;
+        position: relative;
+        z-index: 3;
+        display: block;
+        width: min(100%, 300px);
+        height: 112px;
+        margin-top: 8px;
+    }
+
+    .perception__light-orb {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        padding: 0;
+        border-radius: 50%;
+        background: transparent;
+        transform: translate3d(calc(var(--orb-x, 0px) - 50%), calc(var(--orb-y, 0px) - 50%), 0);
+        touch-action: none;
+    }
+
+    .perception__light-orb::before {
+        grid-area: 1 / 1;
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--beige);
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--paper) 4%, var(--beige) 13%, var(--ink) 64%);
+        box-shadow: 0 0 0 1px var(--ink), 0 0 18px rgba(241, 216, 49, 0.25);
+        content: "";
+    }
+
+    .perception__light-orb:focus-visible {
+        outline: 2px solid var(--paper);
+        outline-offset: 1px;
+        box-shadow: 0 0 0 5px var(--ink);
+    }
+
+    .perception__light-hint {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        color: var(--journey-ink, var(--paper));
+        font-size: 0.75rem;
+        text-align: center;
+        pointer-events: none;
+        opacity: 0.74;
+        transition: opacity 0.3s ease, visibility 0.3s;
+    }
+
+    .has-used-touch-light .perception__light-hint {
+        visibility: hidden;
+        opacity: 0;
+    }
+}
+
 /* Linguagem */
 .language {
     --stream-opacity: 1;

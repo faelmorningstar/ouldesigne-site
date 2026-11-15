@@ -423,6 +423,177 @@ if (perception) {
     }
 }
 
+// Controle táctil da lanterna, separado da posição e da atração do mouse.
+const touchLightControl = perception?.querySelector('.perception__light-control');
+
+if (touchLightControl && 'IntersectionObserver' in window) {
+    const orb = touchLightControl.querySelector('.perception__light-orb');
+    const litCopy = perception.querySelector('.perception__copy--light');
+    const titleRange = document.createRange();
+    titleRange.selectNodeContents($('#perception-title'));
+    const touchLightQuery = window.matchMedia(
+        '(max-width: 720px) and (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference)'
+    );
+    const lightOffset = 108;
+    const dragThreshold = 6;
+    let visible = false;
+    let geometry;
+    let position;
+    let destination;
+    let drag;
+    let dragged = false;
+    let frame = 0;
+    let lastTime = 0;
+    let timer = 0;
+
+    function paintTouchLight() {
+        const { home, text, track } = geometry;
+        orb.style.setProperty('--orb-x', `${position.x - home.x}px`);
+        orb.style.setProperty('--orb-y', `${position.y - home.y}px`);
+        const x = clamp(track.x + position.x, text.left, text.right);
+        const y = clamp(track.y + position.y - lightOffset, text.top, text.bottom);
+        litCopy.style.setProperty('--touch-spot-x', `${x}px`);
+        litCopy.style.setProperty('--touch-spot-y', `${y}px`);
+    }
+
+    function touchLightAvailable() {
+        return touchLightQuery.matches && visible && !document.hidden && geometry;
+    }
+
+    function animateTouchLight(time) {
+        frame = 0;
+        if (!touchLightAvailable()) return;
+
+        const amount = 1 - Math.exp(-(lastTime ? time - lastTime : 16) / 34);
+        lastTime = time;
+        position.x += (destination.x - position.x) * amount;
+        position.y += (destination.y - position.y) * amount;
+        if (Math.hypot(destination.x - position.x, destination.y - position.y) < 0.5) {
+            position = { ...destination };
+        } else {
+            frame = requestAnimationFrame(animateTouchLight);
+        }
+        paintTouchLight();
+    }
+
+    function moveTouchLight(next) {
+        destination = next;
+        if (frame) return;
+        lastTime = 0;
+        frame = requestAnimationFrame(animateTouchLight);
+    }
+
+    function clearTouchLight() {
+        clearTimeout(timer);
+        cancelAnimationFrame(frame);
+        frame = 0;
+        const id = drag?.id;
+        drag = null;
+        if (id !== undefined && orb.hasPointerCapture(id)) orb.releasePointerCapture(id);
+        perception.classList.remove('is-touch-light-active', 'is-touch-light-full');
+
+        if (geometry) {
+            position = { ...geometry.home };
+            paintTouchLight();
+        }
+    }
+
+    function measureTouchLight() {
+        clearTouchLight();
+        perception.classList.toggle('has-touch-light', touchLightQuery.matches);
+        if (!touchLightQuery.matches) {
+            geometry = null;
+            return;
+        }
+
+        const track = touchLightControl.getBoundingClientRect();
+        const layer = litCopy.getBoundingClientRect();
+        const text = titleRange.getBoundingClientRect();
+        const radius = orb.offsetWidth / 2;
+        geometry = {
+            home: { x: track.width / 2, y: track.height / 2 },
+            limits: { left: radius, right: track.width - radius, top: radius, bottom: track.height - radius },
+            track: { x: track.left - layer.left, y: track.top - layer.top },
+            text: {
+                left: text.left - layer.left,
+                right: text.right - layer.left,
+                top: text.top - layer.top,
+                bottom: text.bottom - layer.top
+            }
+        };
+        position = { ...geometry.home };
+        paintTouchLight();
+    }
+
+    orb.addEventListener('pointerdown', (event) => {
+        if (!touchLightAvailable() || !event.isPrimary || event.pointerType === 'mouse' || drag) return;
+        dragged = false;
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY, start: { ...position } };
+    });
+
+    orb.addEventListener('pointermove', (event) => {
+        if (drag?.id !== event.pointerId || !touchLightAvailable()) return;
+
+        const dx = event.clientX - drag.x;
+        const dy = event.clientY - drag.y;
+        if (!dragged) {
+            if (Math.hypot(dx, dy) < dragThreshold) return;
+            dragged = true;
+            orb.setPointerCapture(event.pointerId);
+            clearTimeout(timer);
+            perception.classList.remove('is-touch-light-full');
+            perception.classList.add('has-used-touch-light', 'is-touch-light-active');
+        }
+
+        const { limits } = geometry;
+        moveTouchLight({
+            x: clamp(drag.start.x + dx, limits.left, limits.right),
+            y: clamp(drag.start.y + dy, limits.top, limits.bottom)
+        });
+    });
+
+    function finishTouchLightDrag(event) {
+        if (drag?.id !== event.pointerId) return;
+        drag = null;
+        if (!dragged) return;
+
+        if (event.type !== 'pointerup') {
+            clearTouchLight();
+            return;
+        }
+        timer = window.setTimeout(() => {
+            perception.classList.remove('is-touch-light-active');
+            moveTouchLight(geometry.home);
+        }, 450);
+    }
+
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        orb.addEventListener(event, finishTouchLightDrag);
+    }
+
+    orb.addEventListener('click', (event) => {
+        if (!touchLightAvailable() || (dragged && event.detail !== 0)) return;
+
+        clearTimeout(timer);
+        perception.classList.remove('is-touch-light-active');
+        perception.classList.add('has-used-touch-light', 'is-touch-light-full');
+        moveTouchLight(geometry.home);
+        timer = window.setTimeout(() => perception.classList.remove('is-touch-light-full'), 2850);
+    });
+
+    new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        if (!visible) clearTouchLight();
+    }).observe(perception);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) clearTouchLight();
+    });
+    window.addEventListener('resize', measureTouchLight);
+    touchLightQuery.addEventListener('change', measureTouchLight);
+    document.fonts.ready.then(measureTouchLight);
+    measureTouchLight();
+}
+
 // Efeitos guiados pelo scroll
 const languageSection = $('#linguagem');
 const typeRows = $$('.type-stream__row');
