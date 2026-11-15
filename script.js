@@ -6,49 +6,86 @@ const prefersReducedMotion = window.matchMedia(
     '(prefers-reduced-motion: reduce)'
 ).matches;
 
-const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
-
 // Cursor personalizado
 const cursor = $('.cursor');
 
-if (cursor && hasFinePointer) {
+if (cursor) {
+    const root = document.documentElement;
+    const cursorQuery = window.matchMedia('(width > 720px) and (hover: hover) and (pointer: fine)');
+    const interactive = 'a[href], button:enabled, input:enabled, textarea:enabled, select:enabled, summary';
     let cursorFrame = 0;
-    let cursorX = 0;
-    let cursorY = 0;
+    let cursorPosition = null;
+
+    function hideCursor() {
+        cursorPosition = null;
+        cancelAnimationFrame(cursorFrame);
+        cursorFrame = 0;
+        root.classList.remove('has-custom-cursor');
+    }
+
+    function cursorIsOverLight(elements) {
+        // Combina os fundos CSS sob o ponteiro, do primeiro plano até o fundo opaco.
+        const background = [0, 0, 0];
+        let remaining = 1;
+        for (const element of elements) {
+            const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.map(Number);
+            if (!channels) continue;
+
+            const [red, green, blue, alpha = 1] = channels;
+            const coverage = remaining * alpha;
+            background[0] += red * coverage;
+            background[1] += green * coverage;
+            background[2] += blue * coverage;
+            remaining *= 1 - alpha;
+            if (remaining === 0) break;
+        }
+
+        return journeyContrast(background, journeyPalette.ink) >
+            journeyContrast(background, journeyPalette.paper);
+    }
+
+    function requestCursorFrame() {
+        if (!cursorPosition || cursorFrame) return;
+
+        cursorFrame = requestAnimationFrame(() => {
+            cursorFrame = 0;
+            const { x, y } = cursorPosition;
+            const elements = document.elementsFromPoint(x, y);
+            if (!elements.length) {
+                hideCursor();
+                return;
+            }
+
+            cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            cursor.classList.toggle('is-hovering', Boolean(elements[0].closest(interactive)));
+            cursor.classList.toggle('is-over-light', cursorIsOverLight(elements));
+            root.classList.add('has-custom-cursor');
+        });
+    }
 
     document.addEventListener('pointermove', (event) => {
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-
-        if (!cursorFrame) {
-            cursorFrame = requestAnimationFrame(() => {
-                cursor.style.transform =
-                    `translate3d(${cursorX}px, ${cursorY}px, 0)`;
-
-
-                const target = document.elementFromPoint(
-                    cursorX,
-                    cursorY
-                );
-
-                const isPerception = target?.closest('.perception');
-
-                cursor.classList.toggle(
-                    'is-visible',
-                    Boolean(isPerception)
-                );
-
-cursor.classList.remove('is-over-light');
-
-                cursorFrame = 0;
-            });
+        if (!cursorQuery.matches || event.pointerType !== 'mouse') {
+            hideCursor();
+            return;
         }
-    });
 
-
-    document.documentElement.addEventListener('mouseleave', () => {
-        cursor.classList.remove('is-visible');
+        cursorPosition = { x: event.clientX, y: event.clientY };
+        requestCursorFrame();
     });
+    document.addEventListener('pointerdown', (event) => {
+        if (event.pointerType !== 'mouse') hideCursor();
+    });
+    window.addEventListener('scroll', requestCursorFrame, { capture: true, passive: true });
+    document.addEventListener('click', requestCursorFrame);
+    document.addEventListener('transitionend', (event) => {
+        if (event.propertyName === 'background-color') requestCursorFrame();
+    });
+    root.addEventListener('pointerleave', hideCursor);
+    window.addEventListener('blur', hideCursor);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) hideCursor();
+    });
+    cursorQuery.addEventListener('change', hideCursor);
 }
 
 // Menu lateral
