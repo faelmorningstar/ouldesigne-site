@@ -709,18 +709,70 @@ faqItems.forEach((item) => {
 // Formulário preparado para o Formspree
 const contactForm = $('#contact-form');
 const formFeedback = $('#form-feedback');
+const contactSubmit = $('#contact-form button[type="submit"]');
+const contactSubmitLabel = $('#contact-form button[type="submit"] span');
 
-contactForm?.addEventListener('submit', (event) => {
-    if (!contactForm.action.includes('SEU_CODIGO')) {
+async function contactErrorMessage(response) {
+    if (response.status === 429) {
+        return 'Muitas tentativas. Aguarde um momento e tente novamente.';
+    }
+
+    if (response.status === 400 || response.status === 422) {
+        const data = await response.json().catch(() => null);
+        // Usa os erros de campo para escolher uma mensagem sem exibir detalhes do servidor.
+        const errors = Array.isArray(data?.errors) ? data.errors : [];
+        if (errors.some((error) => error?.field === 'email' && error.message)) {
+            return 'Confira o e-mail informado e tente novamente.';
+        }
+
+        return 'Confira os dados do formulário e tente novamente.';
+    }
+
+    return 'Não foi possível enviar a mensagem. Tente novamente em breve.';
+}
+
+contactForm?.addEventListener('submit', async (event) => {
+    // O navegador valida os campos antes de disparar o evento de envio.
+    event.preventDefault();
+
+    if (contactSubmit.disabled) return;
+
+    const form = event.currentTarget;
+    if (form.action.includes('SEU_CODIGO')) {
+        formFeedback.textContent =
+            'O formulário está sendo configurado. Tente novamente em breve.';
         return;
     }
 
-    event.preventDefault();
+    const originalLabel = contactSubmitLabel.textContent;
+    contactSubmit.disabled = true;
+    contactSubmitLabel.textContent = 'Enviando…';
+    form.setAttribute('aria-busy', 'true');
+    formFeedback.textContent = '';
 
-    if (formFeedback) {
-        formFeedback.textContent =
-            'O formulário está pronto. Falta apenas inserir o código do Formspree no arquivo index.html.';
+    let message;
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            body: new FormData(form)
+        });
+
+        if (response.ok) {
+            form.reset();
+            message = 'Mensagem enviada com sucesso. Entraremos em contato em breve.';
+        } else {
+            message = await contactErrorMessage(response);
+        }
+    } catch {
+        message = 'Não foi possível conectar. Verifique sua conexão e tente novamente.';
+    } finally {
+        contactSubmit.disabled = false;
+        contactSubmitLabel.textContent = originalLabel;
+        form.removeAttribute('aria-busy');
     }
+
+    formFeedback.textContent = message;
 });
 
 // Entrada suave dos elementos
