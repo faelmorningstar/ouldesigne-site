@@ -1163,11 +1163,11 @@ ul {
     will-change: transform;
 }
 
-.faq-card:nth-child(1) { z-index: 1; --card-rotation: -0.4deg; --card-scale: 0.984; }
-.faq-card:nth-child(2) { z-index: 2; --card-rotation: 0.3deg; --card-scale: 0.988; }
-.faq-card:nth-child(3) { z-index: 3; --card-rotation: -0.25deg; --card-scale: 0.992; }
-.faq-card:nth-child(4) { z-index: 4; --card-rotation: 0.2deg; --card-scale: 0.996; }
-.faq-card:nth-child(5) { z-index: 5; --card-rotation: 0deg; --card-scale: 1; }
+.faq-card:nth-child(1) { --faq-stack-layer: 1; z-index: var(--faq-stack-layer); --card-rotation: -0.4deg; --card-scale: 0.984; }
+.faq-card:nth-child(2) { --faq-stack-layer: 2; z-index: var(--faq-stack-layer); --card-rotation: 0.3deg; --card-scale: 0.988; }
+.faq-card:nth-child(3) { --faq-stack-layer: 3; z-index: var(--faq-stack-layer); --card-rotation: -0.25deg; --card-scale: 0.992; }
+.faq-card:nth-child(4) { --faq-stack-layer: 4; z-index: var(--faq-stack-layer); --card-rotation: 0.2deg; --card-scale: 0.996; }
+.faq-card:nth-child(5) { --faq-stack-layer: 5; z-index: var(--faq-stack-layer); --card-rotation: 0deg; --card-scale: 1; }
 
 .faq-card--accent {
     background: var(--beige);
@@ -1709,7 +1709,6 @@ ul {
     .faq {
         --faq-card-height: clamp(400px, 64vh, 520px);
         --faq-card-bottom: 4vh;
-        min-height: 530vh;
         padding: 100px 1rem 0;
     }
 
@@ -1823,6 +1822,43 @@ ul {
     .faq-card__answer {
         right: 28px;
         left: 56px;
+    }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
+    .faq {
+        --faq-mobile-viewport: 100vh;
+        --faq-mobile-entry: 0.35;
+        --faq-mobile-hold: 0.6;
+        --faq-mobile-step: 0.9;
+        min-height: auto;
+    }
+
+    @supports (height: 100svh) {
+        .faq {
+            --faq-mobile-viewport: 100svh;
+        }
+    }
+
+    /* O espaçador prolonga o sticky sem interceptar a rolagem. */
+    .faq::after {
+        content: "";
+        display: block;
+        height: calc(var(--faq-mobile-viewport) * (var(--faq-mobile-entry) + var(--faq-mobile-hold) + var(--faq-mobile-step) * (var(--faq-card-count, 1) - 1)));
+    }
+
+    .faq__stage {
+        top: var(--header-height);
+        height: calc(var(--faq-mobile-viewport) - var(--header-height));
+    }
+
+    .faq-card {
+        --faq-card-bottom: calc((100% - var(--faq-card-height)) / 2);
+        transform-origin: center;
+    }
+
+    .faq-card[open] {
+        z-index: var(--faq-stack-layer, 1);
     }
 }
 

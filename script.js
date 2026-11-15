@@ -429,7 +429,10 @@ const typeRows = $$('.type-stream__row');
 const siteHeader = $('#site-header');
 const aboutSignature = $('#about-signature');
 const faqSection = $('#faq');
+const faqStage = faqSection?.querySelector('.faq__stage');
 const faqItems = $$('.faq-card');
+const mobileFaqQuery = window.matchMedia('(max-width: 720px)');
+faqSection?.style.setProperty('--faq-card-count', faqItems.length);
 
 const scrollMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const journey = languageSection?.parentElement;
@@ -564,16 +567,45 @@ function updateAboutSignature() {
     );
 }
 
+function updateMobileFaqCards(rect) {
+    const style = getComputedStyle(faqStage);
+    const stageHeight = faqStage.getBoundingClientRect().height;
+    const viewportHeight = stageHeight + parseFloat(style.top);
+    const entry = Number(style.getPropertyValue('--faq-mobile-entry'));
+    const hold = Number(style.getPropertyValue('--faq-mobile-hold'));
+    const step = Number(style.getPropertyValue('--faq-mobile-step'));
+    const nextCards = faqItems.length - 1;
+
+    // O fim da seção alcança o fim do palco no último quadro do percurso sticky.
+    const travel = entry + hold + step * nextCards + (viewportHeight - rect.bottom) / viewportHeight;
+    const sequence = clamp((travel - entry - hold) / step, 0, nextCards);
+    const slideShare = 0.42;
+    const ease = (value) => {
+        const progress = clamp(value, 0, 1);
+        return progress * progress * (3 - 2 * progress);
+    };
+    const currentStep = Math.floor(sequence);
+    const stack = currentStep + ease((sequence - currentStep) / slideShare);
+
+    faqItems.forEach((card, index) => {
+        const arrival = index === 0 ? travel / entry : (sequence - index + 1) / slideShare;
+        const offset = Math.max(stack - index, 0) * 18;
+        const y = stageHeight * (1 - ease(arrival)) - offset;
+        card.style.setProperty('--card-y', `${y}px`);
+    });
+}
+
 function updateFaqCards() {
-    if (
-        !faqSection ||
-        !faqItems.length ||
-        prefersReducedMotion
-    ) {
+    const isMobile = mobileFaqQuery.matches && faqStage;
+    const reducedMotion = isMobile ? scrollMotionQuery.matches : prefersReducedMotion;
+    if (!faqSection || !faqItems.length || reducedMotion) return;
+
+    const rect = faqSection.getBoundingClientRect();
+    if (isMobile) {
+        updateMobileFaqCards(rect);
         return;
     }
 
-    const rect = faqSection.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const animationStart = viewportHeight * 0.7;
     const animationDistance = Math.max(
