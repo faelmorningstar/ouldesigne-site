@@ -23,6 +23,7 @@ function startLogoExperience() {
     ).href;
     const debug = new URLSearchParams(location.search).has('logo-debug');
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const touchQuery = window.matchMedia('(hover: none), (pointer: coarse)');
     const events = new AbortController();
     const materials = new Set();
     const geometries = new Set();
@@ -53,7 +54,8 @@ function startLogoExperience() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1;
-    container.replaceChildren(renderer.domElement);
+    const canvas = renderer.domElement;
+    container.replaceChildren(canvas);
 
     let environmentTarget = null;
     let model = null;
@@ -63,6 +65,13 @@ function startLogoExperience() {
     let frameId = 0;
     let heroVisible = true;
     let loadedBytes = 0;
+
+    const touchThreshold = 8; // Pixels antes de distinguir arrasto e rolagem.
+    const touchSmoothing = 0.32;
+    const inertiaTime = 70; // Milissegundos de deslocamento projetado.
+    const maxInertia = 0.35; // Radianos, cerca de 20 graus.
+    let touchDrag = null;
+    let touchRotation = false;
 
     // r172 clears an alpha canvas's transmission buffer to white at alpha 0.5.
     // With no opaque objects behind the logo, that produces a grey glass fill.
@@ -223,12 +232,14 @@ function startLogoExperience() {
         if (motionQuery.matches) {
             rotationGroup.rotation.set(targetRotationX, targetRotationY, 0);
         } else {
-            rotationGroup.rotation.x += xDistance * 0.085;
-            rotationGroup.rotation.y += yDistance * 0.085;
+            const smoothing = touchRotation ? touchSmoothing : 0.085;
+            rotationGroup.rotation.x += xDistance * smoothing;
+            rotationGroup.rotation.y += yDistance * smoothing;
         }
         render();
 
-        if (!motionQuery.matches && (Math.abs(xDistance) > 0.0005 || Math.abs(yDistance) > 0.0005)) {
+        const remainingAngle = touchRotation ? 0.003 : 0.0005;
+        if (!motionQuery.matches && (Math.abs(xDistance) > remainingAngle || Math.abs(yDistance) > remainingAngle)) {
             frameId = requestAnimationFrame(animateTowardCursor);
         }
     }
@@ -254,10 +265,105 @@ function startLogoExperience() {
             1
         );
 
+        touchRotation = false;
         // Da borda esquerda à direita, o cursor controla exatamente 360 graus.
         targetRotationY = (normalizedX - 0.5) * Math.PI * 2;
         targetRotationX = (normalizedY - 0.5) * -0.34;
         requestModelFrame();
+    }, { signal: events.signal });
+
+    function stopTouchRotation() {
+        const pointerId = touchDrag?.pointerId;
+        touchDrag = null;
+
+        if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) {
+            canvas.releasePointerCapture(pointerId);
+        }
+
+        if (touchRotation) targetRotationY = rotationGroup.rotation.y;
+    }
+
+    function startTouchDrag(event) {
+        if (
+            !touchQuery.matches || event.pointerType !== 'touch' || !event.isPrimary ||
+            touchDrag || !model || !heroVisible || document.hidden
+        ) return;
+
+        stopTouchRotation();
+        // Uma largura visível de arrasto corresponde a uma volta completa.
+        const width = Math.min(canvas.getBoundingClientRect().width, document.documentElement.clientWidth);
+        touchDrag = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            lastX: event.clientX,
+            lastTime: event.timeStamp,
+            radiansPerPixel: 2 * Math.PI / Math.max(width, 1),
+            velocity: 0,
+            horizontal: false
+        };
+    }
+
+    function moveTouchDrag(event) {
+        const drag = touchDrag;
+        if (drag?.pointerId !== event.pointerId || !heroVisible || document.hidden) return;
+
+        if (!drag.horizontal) {
+            const dx = event.clientX - drag.startX;
+            const dy = Math.abs(event.clientY - drag.startY);
+
+            if (dy >= touchThreshold && dy >= Math.abs(dx)) {
+                stopTouchRotation();
+                return;
+            }
+            if (Math.abs(dx) < touchThreshold || Math.abs(dx) <= dy * 1.25) return;
+
+            // O navegador continua livre para assumir uma rolagem vertical.
+            canvas.setPointerCapture(event.pointerId);
+            drag.horizontal = true;
+            drag.lastX += Math.sign(dx) * touchThreshold;
+            targetRotationY = rotationGroup.rotation.y;
+        }
+
+        const angle = (event.clientX - drag.lastX) * drag.radiansPerPixel;
+        drag.velocity = angle / Math.max(1, event.timeStamp - drag.lastTime);
+        drag.lastX = event.clientX;
+        drag.lastTime = event.timeStamp;
+        touchRotation = true;
+        targetRotationX = rotationGroup.rotation.x;
+        targetRotationY += angle;
+
+        if (motionQuery.matches) {
+            rotationGroup.rotation.y = targetRotationY;
+            render();
+        } else {
+            requestModelFrame();
+        }
+    }
+
+    function endTouchDrag(event) {
+        const drag = touchDrag;
+        if (drag?.pointerId !== event.pointerId) return;
+
+        if (event.type !== 'pointerup') {
+            stopTouchRotation();
+            return;
+        }
+
+        touchDrag = null;
+        if (!drag.horizontal || motionQuery.matches || event.timeStamp - drag.lastTime > 80) return;
+
+        targetRotationY += THREE.MathUtils.clamp(drag.velocity * inertiaTime, -maxInertia, maxInertia);
+        requestModelFrame();
+    }
+
+    canvas.addEventListener('pointerdown', startTouchDrag, { passive: true, signal: events.signal });
+    canvas.addEventListener('pointermove', moveTouchDrag, { passive: true, signal: events.signal });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        canvas.addEventListener(type, endTouchDrag, { passive: true, signal: events.signal });
+    }
+    touchQuery.addEventListener('change', () => {
+        if (!touchQuery.matches) stopTouchRotation();
     }, { signal: events.signal });
 
     const visibilityObserver = new IntersectionObserver(([entry]) => {
@@ -265,6 +371,7 @@ function startLogoExperience() {
 
         if (heroVisible) requestModelFrame();
         else {
+            stopTouchRotation();
             cancelAnimationFrame(frameId);
             frameId = 0;
         }
@@ -274,11 +381,15 @@ function startLogoExperience() {
     window.addEventListener('resize', requestModelFrame, { passive: true, signal: events.signal });
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
+            stopTouchRotation();
             cancelAnimationFrame(frameId);
             frameId = 0;
         } else requestModelFrame();
     }, { signal: events.signal });
-    motionQuery.addEventListener('change', requestModelFrame, { signal: events.signal });
+    motionQuery.addEventListener('change', () => {
+        if (motionQuery.matches && touchRotation) targetRotationY = rotationGroup.rotation.y;
+        requestModelFrame();
+    }, { signal: events.signal });
 
     function trackResources(root) {
         root.traverse((object) => {

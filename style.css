@@ -515,6 +515,13 @@ ul {
     height: 100% !important;
 }
 
+@media (hover: none), (pointer: coarse) {
+    .hero__model.is-visible canvas {
+        pointer-events: auto;
+        touch-action: pan-y;
+    }
+}
+
 .hero__loader {
     position: absolute;
     right: var(--page-pad);
