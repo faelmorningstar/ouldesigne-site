@@ -747,9 +747,17 @@ ul {
 
 .portfolio-case {
     display: grid;
+    scroll-margin-top: calc(var(--header-height) + 24px);
     grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
     gap: clamp(22px, 4vw, 64px);
     align-items: start;
+}
+
+/* Mantém a posição da âncora enquanto o case é revelado. */
+.portfolio-case:target {
+    opacity: 1;
+    transform: none;
+    transition: none;
 }
 
 .portfolio-case--reverse {
@@ -1659,6 +1667,10 @@ ul {
 
     .portfolio-list {
         gap: 120px;
+    }
+
+    .portfolio-case {
+        scroll-margin-top: calc(var(--header-height) + 8px);
     }
 
     .portfolio-case__media {
